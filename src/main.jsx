@@ -644,19 +644,8 @@ function App() {
               gap: '0.5rem'
             }}>
               <span style={{ fontWeight: '500' }}>
-                {profile?.username} {isAdmin && '👑'}
-              </span>
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1rem',
-                  cursor: 'pointer'
-                }}
-              >
-                ⚙️
-              </button>
+  {profile?.username} {isAdmin && '🕊️'}
+</span>
             </div>
 
             {showSettings && (
