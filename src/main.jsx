@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
+import MetaMaskWallet from './MetaMaskWallet';
 
 function App() {
   const [supabase, setSupabase] = useState(null)
