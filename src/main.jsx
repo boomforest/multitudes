@@ -2,73 +2,66 @@ import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 
 function App() {
-  const [supabase, setSupabase] = useState(null);
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [allProfiles, setAllProfiles] = useState([]);
-  const [activeTab, setActiveTab] = useState('login');
-  const [showSendForm, setShowSendForm] = useState(null);
+  const [supabase, setSupabase] = useState(null)
+  const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [allProfiles, setAllProfiles] = useState([])
+  const [activeTab, setActiveTab] = useState('login')
+  const [showSendForm, setShowSendForm] = useState(null)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     username: ''
-  });
+  })
   const [transferData, setTransferData] = useState({
     recipient: '',
     amount: ''
-  });
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isTransferring, setIsTransferring] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  })
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [isTransferring, setIsTransferring] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
-  // Initialize Supabase
   useEffect(() => {
     const initSupabase = async () => {
       try {
-        const { createClient } = await import('@supabase/supabase-js');
+        const { createClient } = await import('@supabase/supabase-js')
         const client = createClient(
           import.meta.env.VITE_SUPABASE_URL,
           import.meta.env.VITE_SUPABASE_ANON_KEY
-        );
-        setSupabase(client);
-        setMessage('');
+        )
+        setSupabase(client)
+        setMessage('')
 
-        const { data: { session } } = await client.auth.getSession();
+        const { data: { session } } = await client.auth.getSession()
         if (session?.user) {
-          setUser(session.user);
-          await ensureProfileExists(session.user, client);
-          await loadAllProfiles(client);
+          setUser(session.user)
+          await ensureProfileExists(session.user, client)
+          await loadAllProfiles(client)
         }
       } catch (error) {
-        setMessage('Connection failed');
-        console.error('Supabase error:', error);
+        setMessage('Connection failed')
+        console.error('Supabase error:', error)
       }
-    };
-
-    initSupabase();
-  }, []);
+    }
+    initSupabase()
+  }, [])
 
   const ensureProfileExists = async (authUser, client = supabase) => {
     try {
-      console.log('Checking profile for user:', authUser.id);
-      
       const { data: existingProfile } = await client
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
-        .single();
+        .single()
 
       if (existingProfile) {
-        console.log('Profile exists:', existingProfile);
-        setProfile(existingProfile);
-        return existingProfile;
+        setProfile(existingProfile)
+        return existingProfile
       }
 
-      console.log('Profile missing, creating for:', authUser.user_metadata?.username || authUser.email);
-      
-      const username = authUser.user_metadata?.username || 'USER' + Math.random().toString(36).substr(2, 3).toUpperCase();
-      const isJPR333 = username === 'JPR333';
+      const username = authUser.user_metadata?.username || 'USER' + Math.random().toString(36).substr(2, 3).toUpperCase()
+      const isJPR333 = username === 'JPR333'
       
       const newProfile = {
         id: authUser.id,
@@ -76,65 +69,61 @@ function App() {
         email: authUser.email,
         dov_balance: isJPR333 ? 1000000 : 0,
         djr_balance: isJPR333 ? 1000000 : 0
-      };
+      }
 
       const { data: createdProfile, error: createError } = await client
         .from('profiles')
         .insert([newProfile])
         .select()
-        .single();
+        .single()
 
       if (createError) {
-        console.error('Profile creation failed:', createError);
-        setMessage('Profile creation failed: ' + createError.message);
-        return null;
+        setMessage('Profile creation failed: ' + createError.message)
+        return null
       }
 
-      console.log('Profile created successfully:', createdProfile);
-      setProfile(createdProfile);
-      setMessage('Profile created successfully!');
-      return createdProfile;
-
+      setProfile(createdProfile)
+      setMessage('Profile created successfully!')
+      return createdProfile
     } catch (error) {
-      console.error('Error in ensureProfileExists:', error);
-      setMessage('Error creating profile: ' + error.message);
-      return null;
+      setMessage('Error creating profile: ' + error.message)
+      return null
     }
-  };
+  }
 
   const loadAllProfiles = async (client = supabase) => {
     try {
       const { data, error } = await client
         .from('profiles')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
       
-      if (error) throw error;
-      setAllProfiles(data || []);
+      if (error) throw error
+      setAllProfiles(data || [])
     } catch (error) {
-      console.error('Error loading profiles:', error);
+      console.error('Error loading profiles:', error)
     }
-  };
+  }
 
   const handleRegister = async () => {
     if (!supabase) {
-      setMessage('Please wait for connection...');
-      return;
+      setMessage('Please wait for connection...')
+      return
     }
 
     if (!formData.email || !formData.password || !formData.username) {
-      setMessage('Please fill in all fields');
-      return;
+      setMessage('Please fill in all fields')
+      return
     }
 
     if (!/^[A-Z]{3}[0-9]{3}$/.test(formData.username)) {
-      setMessage('Username must be 3 letters + 3 numbers (e.g., ABC123)');
-      return;
+      setMessage('Username must be 3 letters + 3 numbers (e.g., ABC123)')
+      return
     }
 
     try {
-      setLoading(true);
-      setMessage('Creating account...');
+      setLoading(true)
+      setMessage('Creating account...')
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -144,183 +133,169 @@ function App() {
             username: formData.username
           }
         }
-      });
+      })
 
       if (authError) {
-        setMessage('Registration failed: ' + authError.message);
-        return;
+        setMessage('Registration failed: ' + authError.message)
+        return
       }
 
       if (!authData.user) {
-        setMessage('Registration failed: No user returned');
-        return;
+        setMessage('Registration failed: No user returned')
+        return
       }
 
-      setMessage('Account created, setting up profile...');
-
-      const profile = await ensureProfileExists(authData.user);
+      setMessage('Account created, setting up profile...')
+      const profile = await ensureProfileExists(authData.user)
       
       if (profile) {
-        setUser(authData.user);
-        await loadAllProfiles();
-        setMessage('Registration successful!');
-        setFormData({ email: '', password: '', username: '' });
+        setUser(authData.user)
+        await loadAllProfiles()
+        setMessage('Registration successful!')
+        setFormData({ email: '', password: '', username: '' })
       } else {
-        setMessage('Account created but profile setup failed. Please try logging in.');
+        setMessage('Account created but profile setup failed. Please try logging in.')
       }
-
     } catch (err) {
-      console.error('Registration error:', err);
-      setMessage('Registration error: ' + err.message);
+      setMessage('Registration error: ' + err.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleLogin = async () => {
     if (!supabase) {
-      setMessage('Please wait for connection...');
-      return;
+      setMessage('Please wait for connection...')
+      return
     }
 
     if (!formData.email || !formData.password) {
-      setMessage('Please fill in email and password');
-      return;
+      setMessage('Please fill in email and password')
+      return
     }
 
     try {
-      setLoading(true);
-      setMessage('Logging in...');
+      setLoading(true)
+      setMessage('Logging in...')
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password
-      });
+      })
 
       if (error) {
-        setMessage('Login failed: ' + error.message);
-        return;
+        setMessage('Login failed: ' + error.message)
+        return
       }
 
-      setMessage('Login successful, checking profile...');
-      setUser(data.user);
-      await ensureProfileExists(data.user);
-      await loadAllProfiles();
-      setFormData({ email: '', password: '', username: '' });
-      
+      setMessage('Login successful, checking profile...')
+      setUser(data.user)
+      await ensureProfileExists(data.user)
+      await loadAllProfiles()
+      setFormData({ email: '', password: '', username: '' })
     } catch (err) {
-      console.error('Login error:', err);
-      setMessage('Login error: ' + err.message);
+      setMessage('Login error: ' + err.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleLogout = async () => {
     if (supabase) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut()
     }
-    setUser(null);
-    setProfile(null);
-    setAllProfiles([]);
-    setShowSettings(false);
-    setShowSendForm(null);
-    setMessage('');
-    setFormData({ email: '', password: '', username: '' });
-    setTransferData({ recipient: '', amount: '' });
-  };
+    setUser(null)
+    setProfile(null)
+    setAllProfiles([])
+    setShowSettings(false)
+    setShowSendForm(null)
+    setMessage('')
+    setFormData({ email: '', password: '', username: '' })
+    setTransferData({ recipient: '', amount: '' })
+  }
 
   const handleTransfer = async (tokenType) => {
-  if (!supabase || !profile) {
-    setMessage('Please wait for connection...');
-    return;
-  }
-
-  const recipient = transferData.recipient.trim().toUpperCase();
-  const amount = parseFloat(transferData.amount);
-
-  if (!recipient || !amount) {
-    setMessage('Please fill in recipient and amount');
-    return;
-  }
-
-  if (amount <= 0) {
-    setMessage('Amount must be greater than 0');
-    return;
-  }
-
-  const recipientProfile = allProfiles.find(p => p.username === recipient);
-  if (!recipientProfile) {
-    setMessage('Recipient not found');
-    return;
-  }
-
-  if (recipientProfile.id === user.id) {
-    setMessage('Cannot send to yourself');
-    return;
-  }
-
-  const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance;
-  if (currentBalance < amount) {
-    setMessage('Insufficient ' + tokenType + ' tokens');
-    return;
-  }
-
-  try {
-    setIsTransferring(true);
-
-    const senderField = tokenType === 'DOV' ? 'dov_balance' : 'djr_balance';
-    
-    // Debug logging
-    console.log('=== TRANSFER DEBUG ===');
-    console.log('Token type:', tokenType);
-    console.log('Field to update:', senderField);
-    console.log('Recipient profile:', recipientProfile);
-    console.log('Recipient current balance:', tokenType === 'DOV' ? recipientProfile.dov_balance : recipientProfile.djr_balance);
-    console.log('Amount to send:', amount);
-    
-    // Update sender balance
-    const senderNewBalance = tokenType === 'DOV' 
-      ? profile.dov_balance - amount 
-      : profile.djr_balance - amount;
-
-    console.log('Updating sender balance to:', senderNewBalance);
-
-    const { error: senderError } = await supabase
-      .from('profiles')
-      .update({ [senderField]: senderNewBalance })
-      .eq('id', user.id);
-
-    if (senderError) {
-      console.error('Sender update error:', senderError);
-      throw senderError;
+    if (!supabase || !profile) {
+      setMessage('Please wait for connection...')
+      return
     }
 
-    console.log('Sender balance updated successfully');
+    const recipient = transferData.recipient.trim().toUpperCase()
+    const amount = parseFloat(transferData.amount)
 
-    // Update recipient balance using raw SQL approach
-const { error: recipientError } = await supabase
-  .rpc('increment_balance', {
-    user_id: recipientProfile.id,
-    field_name: senderField,
-    amount: amount
-  });
+    if (!recipient || !amount) {
+      setMessage('Please fill in recipient and amount')
+      return
+    }
 
-// If RPC doesn't exist, fall back to direct update
-if (recipientError) {
-  const { error: fallbackError } = await supabase
-    .from('profiles')
-    .update({ 
-      djr_balance: tokenType === 'DJR' ? recipientProfile.djr_balance + amount : recipientProfile.djr_balance,
-      dov_balance: tokenType === 'DOV' ? recipientProfile.dov_balance + amount : recipientProfile.dov_balance
-    })
-    .eq('id', recipientProfile.id);
-    
-  if (fallbackError) throw fallbackError;
-}
+    if (amount <= 0) {
+      setMessage('Amount must be greater than 0')
+      return
+    }
+
+    const recipientProfile = allProfiles.find(p => p.username === recipient)
+    if (!recipientProfile) {
+      setMessage('Recipient not found')
+      return
+    }
+
+    if (recipientProfile.id === user.id) {
+      setMessage('Cannot send to yourself')
+      return
+    }
+
+    const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
+    if (currentBalance < amount) {
+      setMessage('Insufficient tokens')
+      return
+    }
+
+    try {
+      setIsTransferring(true)
+
+      // Simple direct SQL updates
+      if (tokenType === 'DOV') {
+        // Update sender
+        await supabase
+          .from('profiles')
+          .update({ dov_balance: profile.dov_balance - amount })
+          .eq('id', user.id)
+
+        // Update recipient
+        await supabase
+          .from('profiles')
+          .update({ dov_balance: recipientProfile.dov_balance + amount })
+          .eq('id', recipientProfile.id)
+      } else {
+        // Update sender
+        await supabase
+          .from('profiles')
+          .update({ djr_balance: profile.djr_balance - amount })
+          .eq('id', user.id)
+
+        // Update recipient
+        await supabase
+          .from('profiles')
+          .update({ djr_balance: recipientProfile.djr_balance + amount })
+          .eq('id', recipientProfile.id)
+      }
+
+      setMessage('Sent ' + amount + ' ' + tokenType + ' to ' + recipient + '!')
+      setTransferData({ recipient: '', amount: '' })
+      setShowSendForm(null)
+      
+      await ensureProfileExists(user)
+      await loadAllProfiles()
+    } catch (err) {
+      setMessage('Transfer failed: ' + err.message)
+    } finally {
+      setIsTransferring(false)
+    }
+  }
+
   const formatNumber = (num) => {
-    return new Intl.NumberFormat().format(num || 0);
-  };
+    return new Intl.NumberFormat().format(num || 0)
+  }
 
   if (user && showSendForm) {
     return (
@@ -433,7 +408,7 @@ if (recipientError) {
           </button>
         </div>
       </div>
-    );
+    )
   }
 
   if (user) {
@@ -606,7 +581,7 @@ if (recipientError) {
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -759,7 +734,7 @@ if (recipientError) {
         </button>
       </div>
     </div>
-  );
+  )
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />)
