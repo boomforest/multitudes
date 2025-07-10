@@ -214,84 +214,117 @@ function App() {
     setTransferData({ recipient: '', amount: '' })
   }
 
-  const handleTransfer = async (tokenType) => {
-    if (!supabase || !profile) {
-      setMessage('Please wait for connection...')
-      return
-    }
-
-    const recipient = transferData.recipient.trim().toUpperCase()
-    const amount = parseFloat(transferData.amount)
-
-    if (!recipient || !amount) {
-      setMessage('Please fill in recipient and amount')
-      return
-    }
-
-    if (amount <= 0) {
-      setMessage('Amount must be greater than 0')
-      return
-    }
-
-    const recipientProfile = allProfiles.find(p => p.username === recipient)
-    if (!recipientProfile) {
-      setMessage('Recipient not found')
-      return
-    }
-
-    if (recipientProfile.id === user.id) {
-      setMessage('Cannot send to yourself')
-      return
-    }
-
-    const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
-    if (currentBalance < amount) {
-      setMessage('Insufficient tokens')
-      return
-    }
-
-    try {
-      setIsTransferring(true)
-
-      // Simple direct SQL updates
-      if (tokenType === 'DOV') {
-        // Update sender
-        await supabase
-          .from('profiles')
-          .update({ dov_balance: profile.dov_balance - amount })
-          .eq('id', user.id)
-
-        // Update recipient
-        await supabase
-          .from('profiles')
-          .update({ dov_balance: recipientProfile.dov_balance + amount })
-          .eq('id', recipientProfile.id)
-      } else {
-        // Update sender
-        await supabase
-          .from('profiles')
-          .update({ djr_balance: profile.djr_balance - amount })
-          .eq('id', user.id)
-
-        // Update recipient
-        await supabase
-          .from('profiles')
-          .update({ djr_balance: recipientProfile.djr_balance + amount })
-          .eq('id', recipientProfile.id)
-      }
-
-      setMessage('Sent ' + amount + ' ' + tokenType + ' to ' + recipient + '!')
-      setTransferData({ recipient: '', amount: '' })
-      setShowSendForm(null)
-      
-      await ensureProfileExists(user)
-      await loadAllProfiles()
-    } catch (err) {
-      setMessage('Transfer failed: ' + err.message)
-    } finally {
-      setIsTransferring(false)
-    }
+ const handleTransfer = async (tokenType) => {
+  console.log('=== TRANSFER STARTED ===')
+  console.log('Token type:', tokenType)
+  console.log('Supabase exists:', !!supabase)
+  console.log('Profile exists:', !!profile)
+  
+  if (!supabase || !profile) {
+    setMessage('Please wait for connection...')
+    return
   }
+
+  const recipient = transferData.recipient.trim().toUpperCase()
+  const amount = parseFloat(transferData.amount)
+
+  console.log('Recipient:', recipient)
+  console.log('Amount:', amount)
+
+  if (!recipient || !amount) {
+    setMessage('Please fill in recipient and amount')
+    return
+  }
+
+  if (amount <= 0) {
+    setMessage('Amount must be greater than 0')
+    return
+  }
+
+  const recipientProfile = allProfiles.find(p => p.username === recipient)
+  console.log('Recipient profile found:', recipientProfile)
+  
+  if (!recipientProfile) {
+    setMessage('Recipient not found')
+    return
+  }
+
+  if (recipientProfile.id === user.id) {
+    setMessage('Cannot send to yourself')
+    return
+  }
+
+  const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
+  console.log('Sender current balance:', currentBalance)
+  
+  if (currentBalance < amount) {
+    setMessage('Insufficient tokens')
+    return
+  }
+
+  try {
+    setIsTransferring(true)
+    console.log('Starting database updates...')
+
+    // Simple direct SQL updates
+    if (tokenType === 'DOV') {
+      console.log('Updating DOV balances')
+      // Update sender
+      const senderResult = await supabase
+        .from('profiles')
+        .update({ dov_balance: profile.dov_balance - amount })
+        .eq('id', user.id)
+      
+      console.log('Sender update result:', senderResult)
+
+      // Update recipient
+      const recipientResult = await supabase
+        .from('profiles')
+        .update({ dov_balance: recipientProfile.dov_balance + amount })
+        .eq('id', recipientProfile.id)
+        
+      console.log('Recipient update result:', recipientResult)
+    } else {
+      console.log('Updating DJR balances')
+      console.log('Sender ID:', user.id)
+      console.log('Sender current DJR:', profile.djr_balance)
+      console.log('Sender new DJR will be:', profile.djr_balance - amount)
+      
+      // Update sender
+      const senderResult = await supabase
+        .from('profiles')
+        .update({ djr_balance: profile.djr_balance - amount })
+        .eq('id', user.id)
+      
+      console.log('Sender update result:', senderResult)
+
+      console.log('Recipient ID:', recipientProfile.id)
+      console.log('Recipient current DJR:', recipientProfile.djr_balance)
+      console.log('Recipient new DJR will be:', recipientProfile.djr_balance + amount)
+      
+      // Update recipient
+      const recipientResult = await supabase
+        .from('profiles')
+        .update({ djr_balance: recipientProfile.djr_balance + amount })
+        .eq('id', recipientProfile.id)
+        
+      console.log('Recipient update result:', recipientResult)
+    }
+
+    console.log('Database updates complete')
+    setMessage('Sent ' + amount + ' ' + tokenType + ' to ' + recipient + '!')
+    setTransferData({ recipient: '', amount: '' })
+    setShowSendForm(null)
+    
+    await ensureProfileExists(user)
+    await loadAllProfiles()
+  } catch (err) {
+    console.error('Transfer error:', err)
+    setMessage('Transfer failed: ' + err.message)
+  } finally {
+    setIsTransferring(false)
+  }
+}
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat().format(num || 0)
