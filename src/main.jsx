@@ -540,7 +540,7 @@ function App() {
                 boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
               }}
             >
-              Send ✈️
+              Send 
             </button>
           </div>
         </div>
