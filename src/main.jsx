@@ -298,44 +298,26 @@ function App() {
 
     console.log('Sender balance updated successfully');
 
-    // Update recipient balance  
-    const recipientCurrentBalance = tokenType === 'DOV' 
-      ? recipientProfile.dov_balance 
-      : recipientProfile.djr_balance;
+    // Update recipient balance using raw SQL approach
+const { error: recipientError } = await supabase
+  .rpc('increment_balance', {
+    user_id: recipientProfile.id,
+    field_name: senderField,
+    amount: amount
+  });
+
+// If RPC doesn't exist, fall back to direct update
+if (recipientError) {
+  const { error: fallbackError } = await supabase
+    .from('profiles')
+    .update({ 
+      djr_balance: tokenType === 'DJR' ? recipientProfile.djr_balance + amount : recipientProfile.djr_balance,
+      dov_balance: tokenType === 'DOV' ? recipientProfile.dov_balance + amount : recipientProfile.dov_balance
+    })
+    .eq('id', recipientProfile.id);
     
-    const recipientNewBalance = recipientCurrentBalance + amount;
-
-    console.log('Recipient current balance:', recipientCurrentBalance);
-    console.log('Recipient new balance will be:', recipientNewBalance);
-    console.log('Updating recipient ID:', recipientProfile.id);
-
-    const { data: updateResult, error: recipientError } = await supabase
-      .from('profiles')
-      .update({ [senderField]: recipientNewBalance })
-      .eq('id', recipientProfile.id)
-      .select();
-
-    console.log('Recipient update result:', updateResult);
-    console.log('Recipient update error:', recipientError);
-
-    if (recipientError) {
-      console.error('Recipient update failed:', recipientError);
-      throw recipientError;
-    }
-
-    setMessage('Sent ' + amount + ' ' + tokenType + ' to ' + recipient + '!');
-    setTransferData({ recipient: '', amount: '' });
-    setShowSendForm(null);
-    
-    await ensureProfileExists(user);
-    await loadAllProfiles();
-  } catch (err) {
-    console.error('Transfer failed:', err);
-    setMessage('Transfer failed: ' + err.message);
-  } finally {
-    setIsTransferring(false);
-  }
-};
+  if (fallbackError) throw fallbackError;
+}
   const formatNumber = (num) => {
     return new Intl.NumberFormat().format(num || 0);
   };
