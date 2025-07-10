@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client'
 function App() {
   const [supabase, setSupabase] = useState(null);
   const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('login');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -63,23 +64,49 @@ function App() {
         options: {
           data: {
             username: formData.username
-          },
-          emailRedirectTo: 'https://grail3.netlify.app'
+          }
         }
       });
 
       if (error) {
         setMessage('Registration failed: ' + error.message);
-        console.error('Supabase error:', error);
-      } else if (data.user && !data.user.email_confirmed_at) {
-        setMessage('📧 Please check your email and click the confirmation link!');
       } else {
         setMessage('✅ Registration successful!');
         setUser(data.user);
       }
     } catch (err) {
       setMessage('❌ Registration error: ' + err.message);
-      console.error('Registration error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!supabase) {
+      setMessage('Please wait for connection...');
+      return;
+    }
+
+    if (!formData.email || !formData.password) {
+      setMessage('Please fill in email and password');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (error) {
+        setMessage('Login failed: ' + error.message);
+      } else {
+        setMessage('✅ Login successful!');
+        setUser(data.user);
+      }
+    } catch (err) {
+      setMessage('❌ Login error: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -159,6 +186,42 @@ function App() {
           <p style={{ color: '#6b7280' }}>Secure DOV & DJR token trading</p>
         </div>
 
+        {/* Login/Register Tabs */}
+        <div style={{ display: 'flex', marginBottom: '1.5rem' }}>
+          <button
+            onClick={() => setActiveTab('login')}
+            style={{
+              flex: 1,
+              padding: '0.5rem 1rem',
+              backgroundColor: activeTab === 'login' ? '#3b82f6' : '#e5e7eb',
+              color: activeTab === 'login' ? 'white' : '#374151',
+              border: 'none',
+              borderTopLeftRadius: '0.375rem',
+              borderBottomLeftRadius: '0.375rem',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            Login
+          </button>
+          <button
+            onClick={() => setActiveTab('register')}
+            style={{
+              flex: 1,
+              padding: '0.5rem 1rem',
+              backgroundColor: activeTab === 'register' ? '#3b82f6' : '#e5e7eb',
+              color: activeTab === 'register' ? 'white' : '#374151',
+              border: 'none',
+              borderTopRightRadius: '0.375rem',
+              borderBottomRightRadius: '0.375rem',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            Register
+          </button>
+        </div>
+
         {message && (
           <div style={{
             padding: '0.75rem',
@@ -190,7 +253,7 @@ function App() {
           type="password"
           value={formData.password}
           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          placeholder="Password (min 8 characters)"
+          placeholder="Password"
           style={{
             width: '100%',
             padding: '0.5rem 0.75rem',
@@ -201,24 +264,26 @@ function App() {
           }}
         />
 
-        <input
-          type="text"
-          value={formData.username}
-          onChange={(e) => setFormData({ ...formData, username: e.target.value.toUpperCase() })}
-          placeholder="Username (ABC123)"
-          maxLength={6}
-          style={{
-            width: '100%',
-            padding: '0.5rem 0.75rem',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.375rem',
-            marginBottom: '1rem',
-            boxSizing: 'border-box'
-          }}
-        />
+        {activeTab === 'register' && (
+          <input
+            type="text"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value.toUpperCase() })}
+            placeholder="Username (ABC123)"
+            maxLength={6}
+            style={{
+              width: '100%',
+              padding: '0.5rem 0.75rem',
+              border: '1px solid #d1d5db',
+              borderRadius: '0.375rem',
+              marginBottom: '1rem',
+              boxSizing: 'border-box'
+            }}
+          />
+        )}
 
         <button 
-          onClick={handleRegister}
+          onClick={activeTab === 'login' ? handleLogin : handleRegister}
           disabled={loading || !supabase}
           style={{
             width: '100%',
@@ -232,7 +297,7 @@ function App() {
             opacity: (loading || !supabase) ? 0.5 : 1
           }}
         >
-          {loading ? 'Registering...' : 'Register with Supabase'}
+          {loading ? 'Loading...' : (activeTab === 'login' ? 'Login' : 'Register')}
         </button>
       </div>
     </div>
