@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 
 function App() {
+  const [supabase, setSupabase] = useState(null);
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
@@ -9,17 +10,80 @@ function App() {
     username: ''
   });
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
+  // Initialize Supabase
+  useEffect(() => {
+    const initSupabase = async () => {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const client = createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_ANON_KEY
+        );
+        setSupabase(client);
+        setMessage('✅ Supabase connected!');
+
+        // Check if user is already logged in
+        const { data: { session } } = await client.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          setMessage('Welcome back!');
+        }
+      } catch (error) {
+        setMessage('❌ Supabase connection failed');
+        console.error('Supabase error:', error);
+      }
+    };
+
+    initSupabase();
+  }, []);
+
+  const handleRegister = async () => {
+    if (!supabase) {
+      setMessage('Please wait for connection...');
+      return;
+    }
+
     if (!formData.email || !formData.password || !formData.username) {
       setMessage('Please fill in all fields');
       return;
     }
-    setMessage('Registration successful!');
-    setUser({ username: formData.username });
+
+    if (!/^[A-Z]{3}[0-9]{3}$/.test(formData.username)) {
+      setMessage('Username must be 3 letters + 3 numbers (e.g., ABC123)');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            username: formData.username
+          }
+        }
+      });
+
+      if (error) {
+        setMessage('Registration failed: ' + error.message);
+      } else {
+        setMessage('✅ Registration successful!');
+        setUser(data.user);
+      }
+    } catch (err) {
+      setMessage('❌ Registration error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
     setUser(null);
     setMessage('Logged out');
     setFormData({ email: '', password: '', username: '' });
@@ -45,7 +109,8 @@ function App() {
           textAlign: 'center'
         }}>
           <h1>🛡️ Token Exchange</h1>
-          <p>Welcome, {user.username}!</p>
+          <p>Welcome, {user.user_metadata?.username || user.email}!</p>
+          <p>Supabase Status: {supabase ? '✅ Connected' : '⏳ Connecting...'}</p>
           <p>Your token balances will appear here...</p>
           <button 
             onClick={handleLogout}
@@ -94,8 +159,8 @@ function App() {
             padding: '0.75rem',
             borderRadius: '0.375rem',
             marginBottom: '1rem',
-            backgroundColor: message.includes('successful') ? '#d1fae5' : '#fee2e2',
-            color: message.includes('successful') ? '#065f46' : '#991b1b'
+            backgroundColor: message.includes('✅') ? '#d1fae5' : message.includes('❌') ? '#fee2e2' : '#fef3c7',
+            color: message.includes('✅') ? '#065f46' : message.includes('❌') ? '#991b1b' : '#92400e'
           }}>
             {message}
           </div>
@@ -120,7 +185,7 @@ function App() {
           type="password"
           value={formData.password}
           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          placeholder="Password"
+          placeholder="Password (min 8 characters)"
           style={{
             width: '100%',
             padding: '0.5rem 0.75rem',
@@ -149,6 +214,7 @@ function App() {
 
         <button 
           onClick={handleRegister}
+          disabled={loading || !supabase}
           style={{
             width: '100%',
             padding: '0.5rem 1rem',
@@ -157,10 +223,11 @@ function App() {
             border: 'none',
             borderRadius: '0.375rem',
             cursor: 'pointer',
-            fontWeight: '500'
+            fontWeight: '500',
+            opacity: (loading || !supabase) ? 0.5 : 1
           }}
         >
-          Register & Login
+          {loading ? 'Registering...' : 'Register with Supabase'}
         </button>
       </div>
     </div>
