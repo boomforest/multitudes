@@ -34,7 +34,6 @@ function App() {
         setSupabase(client);
         setMessage('');
 
-        // Check if user is already logged in
         const { data: { session } } = await client.auth.getSession();
         if (session?.user) {
           setUser(session.user);
@@ -42,7 +41,7 @@ function App() {
           await loadAllProfiles(client);
         }
       } catch (error) {
-        setMessage('❌ Connection failed');
+        setMessage('Connection failed');
         console.error('Supabase error:', error);
       }
     };
@@ -50,13 +49,11 @@ function App() {
     initSupabase();
   }, []);
 
-  // BULLETPROOF: Ensure profile exists for any authenticated user
   const ensureProfileExists = async (authUser, client = supabase) => {
     try {
       console.log('Checking profile for user:', authUser.id);
       
-      // Try to get existing profile
-      const { data: existingProfile, error: fetchError } = await client
+      const { data: existingProfile } = await client
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
@@ -68,10 +65,9 @@ function App() {
         return existingProfile;
       }
 
-      // Profile doesn't exist - create it
       console.log('Profile missing, creating for:', authUser.user_metadata?.username || authUser.email);
       
-      const username = authUser.user_metadata?.username || `USER${Math.random().toString(36).substr(2, 3).toUpperCase()}`;
+      const username = authUser.user_metadata?.username || 'USER' + Math.random().toString(36).substr(2, 3).toUpperCase();
       const isJPR333 = username === 'JPR333';
       
       const newProfile = {
@@ -140,7 +136,6 @@ function App() {
       setLoading(true);
       setMessage('Creating account...');
 
-      // Step 1: Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -163,7 +158,6 @@ function App() {
 
       setMessage('Account created, setting up profile...');
 
-      // Step 2: Create profile immediately
       const profile = await ensureProfileExists(authData.user);
       
       if (profile) {
@@ -210,11 +204,8 @@ function App() {
 
       setMessage('Login successful, checking profile...');
       setUser(data.user);
-
-      // BULLETPROOF: Always ensure profile exists on login
       await ensureProfileExists(data.user);
       await loadAllProfiles();
-      
       setFormData({ email: '', password: '', username: '' });
       
     } catch (err) {
@@ -258,7 +249,6 @@ function App() {
       return;
     }
 
-    // Find recipient
     const recipientProfile = allProfiles.find(p => p.username === recipient);
     if (!recipientProfile) {
       setMessage('Recipient not found');
@@ -270,61 +260,47 @@ function App() {
       return;
     }
 
-    // Check if sender has enough tokens
     const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance;
     if (currentBalance < amount) {
-      setMessage(`Insufficient ${tokenType} tokens`);
+      setMessage('Insufficient ' + tokenType + ' tokens');
       return;
     }
 
     try {
       setIsTransferring(true);
 
-      // Manual transfer using direct updates
       const senderField = tokenType === 'DOV' ? 'dov_balance' : 'djr_balance';
       
-     // Update recipient balance with debugging
-console.log('Recipient profile:', recipientProfile);
-console.log('Updating recipient with amount:', amount);
-console.log('Current recipient balance:', tokenType === 'DOV' ? recipientProfile.dov_balance : recipientProfile.djr_balance);
+      // Update sender balance
+      const senderNewBalance = tokenType === 'DOV' 
+        ? profile.dov_balance - amount 
+        : profile.djr_balance - amount;
 
-const newRecipientBalance = tokenType === 'DOV'
-  ? recipientProfile.dov_balance + amount
-  : recipientProfile.djr_balance + amount;
+      const { error: senderError } = await supabase
+        .from('profiles')
+        .update({ [senderField]: senderNewBalance })
+        .eq('id', user.id);
 
-console.log('New recipient balance will be:', newRecipientBalance);
+      if (senderError) throw senderError;
 
-const { error: recipientError } = await supabase
-  .from('profiles')
-  .update({ 
-    [senderField]: newRecipientBalance
-  })
-  .eq('id', recipientProfile.id);
+      // Update recipient balance  
+      const recipientCurrentBalance = tokenType === 'DOV' 
+        ? recipientProfile.dov_balance 
+        : recipientProfile.djr_balance;
+      
+      const recipientNewBalance = recipientCurrentBalance + amount;
 
-if (recipientError) {
-  console.error('Recipient update error:', recipientError);
-  throw recipientError;
-}
-
-console.log('Recipient balance updated successfully');
-
-      // Update recipient balance
       const { error: recipientError } = await supabase
         .from('profiles')
-        .update({ 
-          [senderField]: tokenType === 'DOV'
-            ? recipientProfile.dov_balance + amount
-            : recipientProfile.djr_balance + amount
-        })
+        .update({ [senderField]: recipientNewBalance })
         .eq('id', recipientProfile.id);
 
       if (recipientError) throw recipientError;
 
-      setMessage(`Sent ${amount} ${tokenType} to ${recipient}!`);
+      setMessage('Sent ' + amount + ' ' + tokenType + ' to ' + recipient + '!');
       setTransferData({ recipient: '', amount: '' });
       setShowSendForm(null);
       
-      // Refresh balances
       await ensureProfileExists(user);
       await loadAllProfiles();
     } catch (err) {
@@ -334,7 +310,6 @@ console.log('Recipient balance updated successfully');
     }
   };
 
-  // Format numbers
   const formatNumber = (num) => {
     return new Intl.NumberFormat().format(num || 0);
   };
@@ -352,7 +327,6 @@ console.log('Recipient balance updated successfully');
           margin: '0 auto',
           textAlign: 'center'
         }}>
-          {/* Back Button */}
           <button
             onClick={() => setShowSendForm(null)}
             style={{
@@ -468,7 +442,6 @@ console.log('Recipient balance updated successfully');
           margin: '0 auto',
           textAlign: 'center'
         }}>
-          {/* Header */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -497,7 +470,6 @@ console.log('Recipient balance updated successfully');
               </button>
             </div>
 
-            {/* Settings Menu */}
             {showSettings && (
               <div style={{
                 position: 'absolute',
@@ -528,7 +500,6 @@ console.log('Recipient balance updated successfully');
             )}
           </div>
 
-          {/* Status Message */}
           {message && (
             <div style={{
               padding: '1rem',
@@ -544,14 +515,8 @@ console.log('Recipient balance updated successfully');
             </div>
           )}
 
-          {/* Palomas Section */}
           <div style={{ marginBottom: '4rem' }}>
-            <div style={{
-              fontSize: '3rem',
-              marginBottom: '1rem'
-            }}>
-              🕊️
-            </div>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🕊️</div>
             <h2 style={{
               fontSize: '3.5rem',
               color: '#d2691e',
@@ -591,7 +556,6 @@ console.log('Recipient balance updated successfully');
             </button>
           </div>
 
-          {/* Palomitas Section */}
           <div>
             <h2 style={{
               fontSize: '3.5rem',
@@ -601,12 +565,7 @@ console.log('Recipient balance updated successfully');
             }}>
               Palomitas
             </h2>
-            <div style={{
-              fontSize: '2rem',
-              marginBottom: '1rem'
-            }}>
-              🕊️
-            </div>
+            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🕊️</div>
             <div style={{
               background: 'rgba(255, 255, 255, 0.9)',
               borderRadius: '25px',
@@ -671,7 +630,6 @@ console.log('Recipient balance updated successfully');
         </h1>
         <p style={{ color: '#8b4513', margin: '0 0 2rem 0' }}>Token Exchange</p>
 
-        {/* Login/Register Tabs */}
         <div style={{ display: 'flex', marginBottom: '1.5rem', borderRadius: '20px', overflow: 'hidden' }}>
           <button
             onClick={() => setActiveTab('login')}
