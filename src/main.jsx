@@ -215,11 +215,6 @@ function App() {
   }
 
  const handleTransfer = async (tokenType) => {
-  console.log('=== TRANSFER STARTED ===')
-  console.log('Token type:', tokenType)
-  console.log('Supabase exists:', !!supabase)
-  console.log('Profile exists:', !!profile)
-  
   if (!supabase || !profile) {
     setMessage('Please wait for connection...')
     return
@@ -228,104 +223,45 @@ function App() {
   const recipient = transferData.recipient.trim().toUpperCase()
   const amount = parseFloat(transferData.amount)
 
-  console.log('Recipient:', recipient)
-  console.log('Amount:', amount)
-
   if (!recipient || !amount) {
     setMessage('Please fill in recipient and amount')
     return
   }
 
-  if (amount <= 0) {
-    setMessage('Amount must be greater than 0')
-    return
-  }
-
-  const recipientProfile = allProfiles.find(p => p.username === recipient)
-  console.log('Recipient profile found:', recipientProfile)
-  
-  if (!recipientProfile) {
-    setMessage('Recipient not found')
-    return
-  }
-
-  if (recipientProfile.id === user.id) {
-    setMessage('Cannot send to yourself')
-    return
-  }
-
-  const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
-  console.log('Sender current balance:', currentBalance)
-  
-  if (currentBalance < amount) {
-    setMessage('Insufficient tokens')
-    return
-  }
-
   try {
     setIsTransferring(true)
-    console.log('Starting database updates...')
 
-    // Simple direct SQL updates
-    if (tokenType === 'DOV') {
-      console.log('Updating DOV balances')
-      // Update sender
-      const senderResult = await supabase
-        .from('profiles')
-        .update({ dov_balance: profile.dov_balance - amount })
-        .eq('id', user.id)
-      
-      console.log('Sender update result:', senderResult)
+    // Use secure server-side function
+    const { data, error } = await supabase.rpc('secure_transfer_tokens', {
+      recipient_username: recipient,
+      token_type: tokenType,
+      amount: amount
+    })
 
-      // Update recipient
-      const recipientResult = await supabase
-        .from('profiles')
-        .update({ dov_balance: recipientProfile.dov_balance + amount })
-        .eq('id', recipientProfile.id)
-        
-      console.log('Recipient update result:', recipientResult)
-    } else {
-      console.log('Updating DJR balances')
-      console.log('Sender ID:', user.id)
-      console.log('Sender current DJR:', profile.djr_balance)
-      console.log('Sender new DJR will be:', profile.djr_balance - amount)
-      
-      // Update sender
-      const senderResult = await supabase
-        .from('profiles')
-        .update({ djr_balance: profile.djr_balance - amount })
-        .eq('id', user.id)
-      
-      console.log('Sender update result:', senderResult)
-
-      console.log('Recipient ID:', recipientProfile.id)
-      console.log('Recipient current DJR:', recipientProfile.djr_balance)
-      console.log('Recipient new DJR will be:', recipientProfile.djr_balance + amount)
-      
-      // Update recipient
-      const recipientResult = await supabase
-        .from('profiles')
-        .update({ djr_balance: recipientProfile.djr_balance + amount })
-        .eq('id', recipientProfile.id)
-        
-      console.log('Recipient update result:', recipientResult)
+    if (error) {
+      setMessage('Transfer failed: ' + error.message)
+      return
     }
 
-    console.log('Database updates complete')
-    setMessage('Sent ' + amount + ' ' + tokenType + ' to ' + recipient + '!')
-    setTransferData({ recipient: '', amount: '' })
-    setShowSendForm(null)
+    const result = typeof data === 'string' ? JSON.parse(data) : data
     
-    await ensureProfileExists(user)
-    await loadAllProfiles()
+    if (result.success) {
+      setMessage(`Sent ${amount} ${tokenType} to ${recipient}!`)
+      setTransferData({ recipient: '', amount: '' })
+      setShowSendForm(null)
+      
+      // Refresh balances
+      await ensureProfileExists(user)
+      await loadAllProfiles()
+    } else {
+      setMessage(result.error || 'Transfer failed')
+    }
   } catch (err) {
-    console.error('Transfer error:', err)
     setMessage('Transfer failed: ' + err.message)
   } finally {
     setIsTransferring(false)
   }
 }
-
   const formatNumber = (num) => {
     return new Intl.NumberFormat().format(num || 0)
   }
