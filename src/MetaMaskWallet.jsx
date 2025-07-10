@@ -101,36 +101,16 @@ const MetaMaskWallet = ({ onWalletConnect, currentUser }) => {
     return (
       <div style={{
         background: 'rgba(255, 193, 7, 0.1)',
-        border: '2px solid #ffc107',
-        borderRadius: '20px',
-        padding: '1rem',
+        border: '1px solid #ffc107',
+        borderRadius: '10px',
+        padding: '0.75rem',
         marginBottom: '1rem',
         textAlign: 'center'
       }}>
-        <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>⚠️</div>
-        <h3 style={{ margin: '0 0 0.5rem 0', color: '#856404', fontSize: '1.1rem' }}>
-          MetaMask Required
-        </h3>
-        <p style={{ margin: '0 0 1rem 0', color: '#856404', fontSize: '0.9rem' }}>
-          Install MetaMask to connect your wallet
+        <div style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>⚠️</div>
+        <p style={{ margin: '0', color: '#856404', fontSize: '0.85rem' }}>
+          MetaMask not detected
         </p>
-        <a
-          href="https://metamask.io/download/"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-block',
-            background: '#ffc107',
-            color: '#212529',
-            textDecoration: 'none',
-            padding: '0.5rem 1rem',
-            borderRadius: '15px',
-            fontSize: '0.9rem',
-            fontWeight: '500'
-          }}
-        >
-          Install MetaMask
-        </a>
       </div>
     );
   }
