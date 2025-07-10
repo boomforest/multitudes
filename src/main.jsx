@@ -6,9 +6,11 @@ function App() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [allProfiles, setAllProfiles] = useState([])
+  const [copaRewards, setCopaRewards] = useState([])
   const [activeTab, setActiveTab] = useState('login')
   const [showSendForm, setShowSendForm] = useState(null)
   const [showReleaseForm, setShowReleaseForm] = useState(null)
+  const [showCopaHistory, setShowCopaHistory] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -44,6 +46,7 @@ function App() {
           setUser(session.user)
           await ensureProfileExists(session.user, client)
           await loadAllProfiles(client)
+          await loadCopaRewards(session.user.id, client)
         }
       } catch (error) {
         setMessage('Connection failed')
@@ -74,7 +77,8 @@ function App() {
         username: username,
         email: authUser.email,
         dov_balance: isJPR333 ? 1000000 : 0,
-        djr_balance: isJPR333 ? 1000000 : 0
+        djr_balance: isJPR333 ? 1000000 : 0,
+        copas_earned: 0
       }
 
       const { data: createdProfile, error: createError } = await client
@@ -108,6 +112,21 @@ function App() {
       setAllProfiles(data || [])
     } catch (error) {
       console.error('Error loading profiles:', error)
+    }
+  }
+
+  const loadCopaRewards = async (userId, client = supabase) => {
+    try {
+      const { data, error } = await client
+        .from('copa_rewards')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      setCopaRewards(data || [])
+    } catch (error) {
+      console.error('Error loading Copa rewards:', error)
     }
   }
 
@@ -157,6 +176,7 @@ function App() {
       if (profile) {
         setUser(authData.user)
         await loadAllProfiles()
+        await loadCopaRewards(authData.user.id)
         setMessage('Registration successful!')
         setFormData({ email: '', password: '', username: '' })
       } else {
@@ -198,6 +218,7 @@ function App() {
       setUser(data.user)
       await ensureProfileExists(data.user)
       await loadAllProfiles()
+      await loadCopaRewards(data.user.id)
       setFormData({ email: '', password: '', username: '' })
     } catch (err) {
       setMessage('Login error: ' + err.message)
@@ -213,9 +234,11 @@ function App() {
     setUser(null)
     setProfile(null)
     setAllProfiles([])
+    setCopaRewards([])
     setShowSettings(false)
     setShowSendForm(null)
     setShowReleaseForm(null)
+    setShowCopaHistory(false)
     setMessage('')
     setFormData({ email: '', password: '', username: '' })
     setTransferData({ recipient: '', amount: '' })
@@ -223,93 +246,73 @@ function App() {
   }
 
   const handleAdminTransfer = async (tokenType) => {
-  console.log('=== ADMIN TRANSFER DEBUG ===')
-  console.log('Token type:', tokenType)
-  console.log('User profile:', profile)
-  
-  if (!supabase || !profile) {
-    setMessage('Please wait for connection...')
-    return
-  }
-
-  const recipient = transferData.recipient.trim().toUpperCase()
-  const amount = parseFloat(transferData.amount)
-
-  console.log('Recipient:', recipient)
-  console.log('Amount:', amount)
-  console.log('All profiles:', allProfiles)
-
-  if (!recipient || !amount) {
-    setMessage('Please fill in recipient and amount')
-    return
-  }
-
-  // Find recipient
-  const recipientProfile = allProfiles.find(p => p.username === recipient)
-  console.log('Recipient profile found:', recipientProfile)
-  
-  if (!recipientProfile) {
-    setMessage('Recipient not found')
-    return
-  }
-
-  if (recipientProfile.id === user.id) {
-    setMessage('Cannot send to yourself')
-    return
-  }
-
-  const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
-  console.log('Sender current balance:', currentBalance)
-  
-  if (currentBalance < amount) {
-    setMessage('Insufficient tokens')
-    return
-  }
-
-  try {
-    setIsTransferring(true)
-    console.log('Starting transfer...')
-
-    // Simple direct updates
-    if (tokenType === 'DOV') {
-      console.log('Updating DOV balances')
-      console.log('Sender new balance:', profile.dov_balance - amount)
-      console.log('Recipient current balance:', recipientProfile.dov_balance)
-      console.log('Recipient new balance:', recipientProfile.dov_balance + amount)
-      
-      // Update sender
-      const senderResult = await supabase
-        .from('profiles')
-        .update({ dov_balance: profile.dov_balance - amount })
-        .eq('id', user.id)
-      
-      console.log('Sender update result:', senderResult)
-
-      // Update recipient
-      const recipientResult = await supabase
-        .from('profiles')
-        .update({ dov_balance: recipientProfile.dov_balance + amount })
-        .eq('id', recipientProfile.id)
-        
-      console.log('Recipient update result:', recipientResult)
-    } else {
-      // DJR logic here...
+    if (!supabase || !profile) {
+      setMessage('Please wait for connection...')
+      return
     }
 
-    console.log('Transfer completed')
-    setMessage(`Sent ${amount} ${tokenType} to ${recipient}!`)
-    setTransferData({ recipient: '', amount: '' })
-    setShowSendForm(null)
-    
-    await ensureProfileExists(user)
-    await loadAllProfiles()
-  } catch (err) {
-    console.error('Transfer error:', err)
-    setMessage('Transfer failed: ' + err.message)
-  } finally {
-    setIsTransferring(false)
+    const recipient = transferData.recipient.trim().toUpperCase()
+    const amount = parseFloat(transferData.amount)
+
+    if (!recipient || !amount) {
+      setMessage('Please fill in recipient and amount')
+      return
+    }
+
+    const recipientProfile = allProfiles.find(p => p.username === recipient)
+    if (!recipientProfile) {
+      setMessage('Recipient not found')
+      return
+    }
+
+    if (recipientProfile.id === user.id) {
+      setMessage('Cannot send to yourself')
+      return
+    }
+
+    const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
+    if (currentBalance < amount) {
+      setMessage('Insufficient tokens')
+      return
+    }
+
+    try {
+      setIsTransferring(true)
+
+      if (tokenType === 'DOV') {
+        await supabase
+          .from('profiles')
+          .update({ dov_balance: profile.dov_balance - amount })
+          .eq('id', user.id)
+
+        await supabase
+          .from('profiles')
+          .update({ dov_balance: recipientProfile.dov_balance + amount })
+          .eq('id', recipientProfile.id)
+      } else {
+        await supabase
+          .from('profiles')
+          .update({ djr_balance: profile.djr_balance - amount })
+          .eq('id', user.id)
+
+        await supabase
+          .from('profiles')
+          .update({ djr_balance: recipientProfile.djr_balance + amount })
+          .eq('id', recipientProfile.id)
+      }
+
+      setMessage(`Sent ${amount} ${tokenType} to ${recipient}!`)
+      setTransferData({ recipient: '', amount: '' })
+      setShowSendForm(null)
+      
+      await ensureProfileExists(user)
+      await loadAllProfiles()
+    } catch (err) {
+      setMessage('Transfer failed: ' + err.message)
+    } finally {
+      setIsTransferring(false)
+    }
   }
-}
 
   const handleRelease = async (tokenType) => {
     if (!supabase || !profile) {
@@ -342,12 +345,17 @@ function App() {
       const result = typeof data === 'string' ? JSON.parse(data) : data
       
       if (result.success) {
-        setMessage(`Released ${amount} ${tokenType}!`)
+        if (result.copas_earned > 0) {
+          setMessage(`Released ${amount} ${tokenType} and earned ${result.copas_earned} Copas! 🏆`)
+        } else {
+          setMessage(`Released ${amount} ${tokenType}!`)
+        }
         setReleaseData({ amount: '', reason: '' })
         setShowReleaseForm(null)
         
         await ensureProfileExists(user)
         await loadAllProfiles()
+        await loadCopaRewards(user.id)
       } else {
         setMessage(result.error || 'Release failed')
       }
@@ -362,7 +370,138 @@ function App() {
     return new Intl.NumberFormat().format(num || 0)
   }
 
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
+  }
+
   const isAdmin = profile?.username === 'JPR333'
+
+  // Copa History Screen
+  if (user && showCopaHistory) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#f5f5dc',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '2rem 1rem'
+      }}>
+        <div style={{
+          maxWidth: '400px',
+          margin: '0 auto'
+        }}>
+          <button
+            onClick={() => setShowCopaHistory(false)}
+            style={{
+              position: 'absolute',
+              top: '2rem',
+              left: '2rem',
+              background: 'rgba(255, 255, 255, 0.9)',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '0.5rem 1rem',
+              fontSize: '1rem',
+              cursor: 'pointer'
+            }}
+          >
+            ← Back
+          </button>
+
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h1 style={{
+              fontSize: '3rem',
+              color: '#d4af37',
+              marginBottom: '1rem',
+              fontWeight: 'normal'
+            }}>
+              🏆 Copa History
+            </h1>
+            <div style={{
+              background: 'rgba(212, 175, 55, 0.2)',
+              borderRadius: '20px',
+              padding: '1rem',
+              marginBottom: '2rem'
+            }}>
+              <h2 style={{
+                fontSize: '2rem',
+                color: '#d4af37',
+                margin: 0
+              }}>
+                Total Copas: {formatNumber(profile?.copas_earned || 0)}
+              </h2>
+            </div>
+          </div>
+
+          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            {copaRewards.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                color: '#8b4513',
+                fontSize: '1.1rem',
+                padding: '2rem'
+              }}>
+                No Copa rewards yet. Release tokens to earn Copas!
+              </div>
+            ) : (
+              copaRewards.map(reward => (
+                <div
+                  key={reward.id}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    borderRadius: '15px',
+                    padding: '1rem',
+                    marginBottom: '1rem',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <div style={{
+                      fontSize: '1.5rem',
+                      fontWeight: 'bold',
+                      color: '#d4af37'
+                    }}>
+                      🏆 +{reward.copas_earned} Copas
+                    </div>
+                    <div style={{
+                      fontSize: '0.9rem',
+                      color: '#8b4513'
+                    }}>
+                      {formatDate(reward.created_at)}
+                    </div>
+                  </div>
+                  <div style={{
+                    fontSize: '0.9rem',
+                    color: '#666',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Released: {reward.dov_released > 0 && `${reward.dov_released} DOV`}
+                    {reward.djr_released > 0 && `${reward.djr_released} DJR`}
+                  </div>
+                  {reward.reason && (
+                    <div style={{
+                      fontSize: '0.85rem',
+                      color: '#888',
+                      fontStyle: 'italic'
+                    }}>
+                      "{reward.reason}"
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // Admin Send Form
   if (user && showSendForm) {
@@ -481,6 +620,9 @@ function App() {
 
   // User Release Form
   if (user && showReleaseForm) {
+    const copaRate = showReleaseForm === 'DOV' ? 10 : 100
+    const potentialCopas = Math.floor((parseFloat(releaseData.amount) || 0) / copaRate)
+
     return (
       <div style={{
         minHeight: '100vh',
@@ -513,18 +655,34 @@ function App() {
           <h1 style={{
             fontSize: '3rem',
             color: '#8b4513',
-            marginBottom: '2rem',
+            marginBottom: '1rem',
             fontWeight: 'normal'
           }}>
             Release {showReleaseForm}
           </h1>
 
+          <div style={{
+            background: 'rgba(212, 175, 55, 0.2)',
+            borderRadius: '15px',
+            padding: '0.75rem',
+            marginBottom: '2rem',
+            fontSize: '0.9rem',
+            color: '#8b4513'
+          }}>
+            🏆 Earn 1 Copa per {copaRate} {showReleaseForm} released
+            {potentialCopas > 0 && (
+              <div style={{ fontWeight: 'bold', marginTop: '0.5rem' }}>
+                You'll earn {potentialCopas} Copa{potentialCopas !== 1 ? 's' : ''}!
+              </div>
+            )}
+          </div>
+
           {message && (
             <div style={{
               padding: '1rem',
               marginBottom: '2rem',
-              backgroundColor: message.includes('Released') ? '#d4edda' : '#f8d7da',
-              color: message.includes('Released') ? '#155724' : '#721c24',
+              backgroundColor: message.includes('Released') || message.includes('earned') ? '#d4edda' : '#f8d7da',
+              color: message.includes('Released') || message.includes('earned') ? '#155724' : '#721c24',
               borderRadius: '20px'
             }}>
               {message}
@@ -667,13 +825,50 @@ function App() {
             )}
           </div>
 
+          {/* Copa Trophy Display */}
+          {!isAdmin && (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(255, 215, 0, 0.1) 100%)',
+              borderRadius: '20px',
+              padding: '1rem',
+              marginBottom: '2rem',
+              cursor: 'pointer',
+              transition: 'transform 0.2s ease'
+            }}
+            onClick={() => setShowCopaHistory(true)}
+            onMouseOver={(e) => e.target.style.transform = 'scale(1.02)'}
+            onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+            >
+              <div style={{
+                fontSize: '2rem',
+                marginBottom: '0.5rem'
+              }}>
+                🏆
+              </div>
+              <div style={{
+                fontSize: '1.5rem',
+                fontWeight: 'bold',
+                color: '#d4af37',
+                marginBottom: '0.25rem'
+              }}>
+                {formatNumber(profile?.copas_earned || 0)} Copas
+              </div>
+              <div style={{
+                fontSize: '0.9rem',
+                color: '#8b4513'
+              }}>
+                Tap to view history
+              </div>
+            </div>
+          )}
+
           {message && (
             <div style={{
               padding: '1rem',
               marginBottom: '2rem',
-              backgroundColor: message.includes('successful') || message.includes('Sent') || message.includes('Released') ? '#d4edda' : 
+              backgroundColor: message.includes('successful') || message.includes('Sent') || message.includes('Released') || message.includes('earned') ? '#d4edda' : 
                              message.includes('failed') ? '#f8d7da' : '#fff3cd',
-              color: message.includes('successful') || message.includes('Sent') || message.includes('Released') ? '#155724' : 
+              color: message.includes('successful') || message.includes('Sent') || message.includes('Released') || message.includes('earned') ? '#155724' : 
                      message.includes('failed') ? '#721c24' : '#856404',
               borderRadius: '15px',
               fontSize: '0.9rem'
@@ -731,232 +926,4 @@ function App() {
                   border: 'none',
                   borderRadius: '25px',
                   padding: '1rem 3rem',
-                  fontSize: '1.2rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(139, 69, 19, 0.3)'
-                }}
-              >
-                Release
-              </button>
-            )}
-          </div>
-
-          <div>
-            <h2 style={{
-              fontSize: '3.5rem',
-              color: '#8b4513',
-              margin: '0 0 1rem 0',
-              fontWeight: 'normal'
-            }}>
-              Palomitas
-            </h2>
-            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🕊️</div>
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.9)',
-              borderRadius: '25px',
-              padding: '0.75rem 1.5rem',
-              display: 'inline-block',
-              fontSize: '1.5rem',
-              fontWeight: '500',
-              color: '#8b4513',
-              marginBottom: '2rem'
-            }}>
-              {formatNumber(profile?.djr_balance)}
-            </div>
-            <br />
-            {isAdmin ? (
-              <button
-                onClick={() => setShowSendForm('DJR')}
-                style={{
-                  background: 'linear-gradient(45deg, #d2691e, #cd853f)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '25px',
-                  padding: '1rem 3rem',
-                  fontSize: '1.2rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
-                }}
-              >
-                Send
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowReleaseForm('DJR')}
-                style={{
-                  background: 'linear-gradient(45deg, #8b4513, #a0522d)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '25px',
-                  padding: '1rem 3rem',
-                  fontSize: '1.2rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(139, 69, 19, 0.3)'
-                }}
-              >
-                Release
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#f5f5dc',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '1rem'
-    }}>
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: '25px',
-        padding: '2rem',
-        width: '100%',
-        maxWidth: '400px',
-        textAlign: 'center',
-        boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)'
-      }}>
-        <h1 style={{
-          fontSize: '2.5rem',
-          fontWeight: 'bold',
-          margin: '0 0 0.5rem 0',
-          color: '#d2691e'
-        }}>
-          GRAIL
-        </h1>
-        <p style={{ color: '#8b4513', margin: '0 0 2rem 0' }}>Token Exchange</p>
-
-        <div style={{ display: 'flex', marginBottom: '1.5rem', borderRadius: '20px', overflow: 'hidden' }}>
-          <button
-            onClick={() => setActiveTab('login')}
-            style={{
-              flex: 1,
-              padding: '1rem',
-              backgroundColor: activeTab === 'login' ? '#d2691e' : '#f0f0f0',
-              color: activeTab === 'login' ? 'white' : '#8b4513',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: '500'
-            }}
-          >
-            Login
-          </button>
-          <button
-            onClick={() => setActiveTab('register')}
-            style={{
-              flex: 1,
-              padding: '1rem',
-              backgroundColor: activeTab === 'register' ? '#d2691e' : '#f0f0f0',
-              color: activeTab === 'register' ? 'white' : '#8b4513',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: '500'
-            }}
-          >
-            Register
-          </button>
-        </div>
-
-        {message && (
-          <div style={{
-            padding: '1rem',
-            borderRadius: '15px',
-            marginBottom: '1rem',
-            backgroundColor: message.includes('successful') ? '#d4edda' : 
-                           message.includes('failed') ? '#f8d7da' : '#fff3cd',
-            color: message.includes('successful') ? '#155724' : 
-                   message.includes('failed') ? '#721c24' : '#856404',
-            fontSize: '0.9rem'
-          }}>
-            {message}
-          </div>
-        )}
-
-        <input
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          placeholder="Email"
-          style={{
-            width: '100%',
-            padding: '1rem',
-            border: '2px solid #e0e0e0',
-            borderRadius: '15px',
-            marginBottom: '1rem',
-            boxSizing: 'border-box',
-            fontSize: '1rem',
-            outline: 'none'
-          }}
-        />
-
-        <input
-          type="password"
-          value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          placeholder="Password"
-          style={{
-            width: '100%',
-            padding: '1rem',
-            border: '2px solid #e0e0e0',
-            borderRadius: '15px',
-            marginBottom: '1rem',
-            boxSizing: 'border-box',
-            fontSize: '1rem',
-            outline: 'none'
-          }}
-        />
-
-        {activeTab === 'register' && (
-          <input
-            type="text"
-            value={formData.username}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value.toUpperCase() })}
-            placeholder="Username (ABC123)"
-            maxLength={6}
-            style={{
-              width: '100%',
-              padding: '1rem',
-              border: '2px solid #e0e0e0',
-              borderRadius: '15px',
-              marginBottom: '1rem',
-              boxSizing: 'border-box',
-              fontSize: '1rem',
-              outline: 'none'
-            }}
-          />
-        )}
-
-        <button 
-          onClick={activeTab === 'login' ? handleLogin : handleRegister}
-          disabled={loading || !supabase}
-          style={{
-            width: '100%',
-            padding: '1rem',
-            background: 'linear-gradient(45deg, #d2691e, #cd853f)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '15px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '1rem',
-            opacity: (loading || !supabase) ? 0.5 : 1,
-            boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
-          }}
-        >
-          {loading ? 'Loading...' : (activeTab === 'login' ? 'Login' : 'Register')}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+                  fontSize: '1.2rem
