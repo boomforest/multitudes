@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
-import MetaMaskWallet from './MetaMaskWallet';
+import WalletInput from './WalletInput';
 
 function App() {
   const [supabase, setSupabase] = useState(null)
@@ -98,8 +98,8 @@ function App() {
     }
   }
 
-  // NEW FUNCTION: Handle wallet connection and save to database
-  const handleWalletConnect = async (walletAddress) => {
+  // NEW FUNCTION: Handle wallet address save
+  const handleWalletSave = async (walletAddress) => {
     if (!supabase || !user) {
       console.log('No supabase client or user available')
       return
@@ -109,7 +109,7 @@ function App() {
       // Update the profile with the wallet address
       const { error } = await supabase
         .from('profiles')
-        .update({ wallet_address: walletAddress })
+        .update({ wallet_address: walletAddress || null })
         .eq('id', user.id)
 
       if (error) {
@@ -122,13 +122,13 @@ function App() {
       await ensureProfileExists(user)
       
       if (walletAddress) {
-        setMessage('Wallet connected successfully! 🎉')
+        setMessage('Wallet address saved! 🎉')
       } else {
-        setMessage('Wallet disconnected')
+        setMessage('Wallet address removed')
       }
     } catch (error) {
-      console.error('Error handling wallet connection:', error)
-      setMessage('Error connecting wallet: ' + error.message)
+      console.error('Error handling wallet save:', error)
+      setMessage('Error saving wallet: ' + error.message)
     }
   }
 
@@ -641,7 +641,7 @@ function App() {
               gap: '0.5rem'
             }}>
               <span style={{ fontWeight: '500' }}>
-                {profile?.username} {isAdmin && '🕊️'}
+                {profile?.username} {isAdmin && '👑'}
               </span>
               <button
                 onClick={() => setShowSettings(!showSettings)}
@@ -668,13 +668,11 @@ function App() {
                 zIndex: 1000,
                 minWidth: '280px'
               }}>
-                {/* MetaMask Wallet Component in Settings */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <MetaMaskWallet 
-                    onWalletConnect={handleWalletConnect}
-                    currentUser={user}
-                  />
-                </div>
+                {/* Simple Wallet Input */}
+                <WalletInput 
+                  onWalletSave={handleWalletSave}
+                  currentWallet={profile?.wallet_address}
+                />
                 
                 <button
                   onClick={handleLogout}
