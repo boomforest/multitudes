@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 
+// Add Supabase
+const { createClient } = await import('@supabase/supabase-js');
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
+import React, { useState, useEffect } from 'react'
+import ReactDOM from 'react-dom/client'
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
