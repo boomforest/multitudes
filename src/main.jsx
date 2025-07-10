@@ -7,7 +7,7 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [allProfiles, setAllProfiles] = useState([]);
   const [activeTab, setActiveTab] = useState('login');
-  const [showSendForm, setShowSendForm] = useState(null); // null, 'DOV', or 'DJR'
+  const [showSendForm, setShowSendForm] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -38,7 +38,7 @@ function App() {
         const { data: { session } } = await client.auth.getSession();
         if (session?.user) {
           setUser(session.user);
-          await loadUserProfile(session.user.id, client);
+          await ensureProfileExists(session.user, client);
           await loadAllProfiles(client);
         }
       } catch (error) {
@@ -50,21 +50,59 @@ function App() {
     initSupabase();
   }, []);
 
-  const loadUserProfile = async (userId, client = supabase) => {
+  // BULLETPROOF: Ensure profile exists for any authenticated user
+  const ensureProfileExists = async (authUser, client = supabase) => {
     try {
-      const { data, error } = await client
+      console.log('Checking profile for user:', authUser.id);
+      
+      // Try to get existing profile
+      const { data: existingProfile, error: fetchError } = await client
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', authUser.id)
         .single();
-      
-      if (error) {
-        console.error('Profile error:', error);
-      } else {
-        setProfile(data);
+
+      if (existingProfile) {
+        console.log('Profile exists:', existingProfile);
+        setProfile(existingProfile);
+        return existingProfile;
       }
+
+      // Profile doesn't exist - create it
+      console.log('Profile missing, creating for:', authUser.user_metadata?.username || authUser.email);
+      
+      const username = authUser.user_metadata?.username || `USER${Math.random().toString(36).substr(2, 3).toUpperCase()}`;
+      const isJPR333 = username === 'JPR333';
+      
+      const newProfile = {
+        id: authUser.id,
+        username: username,
+        email: authUser.email,
+        dov_balance: isJPR333 ? 1000000 : 0,
+        djr_balance: isJPR333 ? 1000000 : 0
+      };
+
+      const { data: createdProfile, error: createError } = await client
+        .from('profiles')
+        .insert([newProfile])
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Profile creation failed:', createError);
+        setMessage('Profile creation failed: ' + createError.message);
+        return null;
+      }
+
+      console.log('Profile created successfully:', createdProfile);
+      setProfile(createdProfile);
+      setMessage('Profile created successfully!');
+      return createdProfile;
+
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error('Error in ensureProfileExists:', error);
+      setMessage('Error creating profile: ' + error.message);
+      return null;
     }
   };
 
@@ -100,7 +138,10 @@ function App() {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.signUp({
+      setMessage('Creating account...');
+
+      // Step 1: Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
@@ -110,17 +151,32 @@ function App() {
         }
       });
 
-      if (error) {
-        setMessage('Registration failed: ' + error.message);
-      } else {
-        setMessage('Registration successful!');
-        setUser(data.user);
-        setTimeout(() => {
-          loadUserProfile(data.user.id);
-          loadAllProfiles();
-        }, 1000);
+      if (authError) {
+        setMessage('Registration failed: ' + authError.message);
+        return;
       }
+
+      if (!authData.user) {
+        setMessage('Registration failed: No user returned');
+        return;
+      }
+
+      setMessage('Account created, setting up profile...');
+
+      // Step 2: Create profile immediately
+      const profile = await ensureProfileExists(authData.user);
+      
+      if (profile) {
+        setUser(authData.user);
+        await loadAllProfiles();
+        setMessage('Registration successful!');
+        setFormData({ email: '', password: '', username: '' });
+      } else {
+        setMessage('Account created but profile setup failed. Please try logging in.');
+      }
+
     } catch (err) {
+      console.error('Registration error:', err);
       setMessage('Registration error: ' + err.message);
     } finally {
       setLoading(false);
@@ -140,6 +196,8 @@ function App() {
 
     try {
       setLoading(true);
+      setMessage('Logging in...');
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password
@@ -147,13 +205,20 @@ function App() {
 
       if (error) {
         setMessage('Login failed: ' + error.message);
-      } else {
-        setMessage('Login successful!');
-        setUser(data.user);
-        await loadUserProfile(data.user.id);
-        await loadAllProfiles();
+        return;
       }
+
+      setMessage('Login successful, checking profile...');
+      setUser(data.user);
+
+      // BULLETPROOF: Always ensure profile exists on login
+      await ensureProfileExists(data.user);
+      await loadAllProfiles();
+      
+      setFormData({ email: '', password: '', username: '' });
+      
     } catch (err) {
+      console.error('Login error:', err);
       setMessage('Login error: ' + err.message);
     } finally {
       setLoading(false);
@@ -247,7 +312,7 @@ function App() {
       setShowSendForm(null);
       
       // Refresh balances
-      await loadUserProfile(user.id);
+      await ensureProfileExists(user);
       await loadAllProfiles();
     } catch (err) {
       setMessage('Transfer failed: ' + err.message);
@@ -450,6 +515,22 @@ function App() {
             )}
           </div>
 
+          {/* Status Message */}
+          {message && (
+            <div style={{
+              padding: '1rem',
+              marginBottom: '2rem',
+              backgroundColor: message.includes('successful') || message.includes('Sent') ? '#d4edda' : 
+                             message.includes('failed') ? '#f8d7da' : '#fff3cd',
+              color: message.includes('successful') || message.includes('Sent') ? '#155724' : 
+                     message.includes('failed') ? '#721c24' : '#856404',
+              borderRadius: '15px',
+              fontSize: '0.9rem'
+            }}>
+              {message}
+            </div>
+          )}
+
           {/* Palomas Section */}
           <div style={{ marginBottom: '4rem' }}>
             <div style={{
@@ -540,7 +621,7 @@ function App() {
                 boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
               }}
             >
-              Send 
+              Send
             </button>
           </div>
         </div>
@@ -614,8 +695,10 @@ function App() {
             padding: '1rem',
             borderRadius: '15px',
             marginBottom: '1rem',
-            backgroundColor: message.includes('successful') ? '#d4edda' : '#f8d7da',
-            color: message.includes('successful') ? '#155724' : '#721c24',
+            backgroundColor: message.includes('successful') ? '#d4edda' : 
+                           message.includes('failed') ? '#f8d7da' : '#fff3cd',
+            color: message.includes('successful') ? '#155724' : 
+                   message.includes('failed') ? '#721c24' : '#856404',
             fontSize: '0.9rem'
           }}>
             {message}
