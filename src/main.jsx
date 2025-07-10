@@ -693,20 +693,6 @@ function App() {
             )}
           </div>
 
-          {/* Show wallet address in profile if connected */}
-          {profile?.wallet_address && (
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.9)',
-              borderRadius: '20px',
-              padding: '0.75rem 1rem',
-              marginBottom: '1rem',
-              fontSize: '0.9rem',
-              color: '#8b4513'
-            }}>
-              🔗 Wallet: {formatWalletAddress(profile.wallet_address)}
-            </div>
-          )}
-
           {message && (
             <div style={{
               padding: '1rem',
