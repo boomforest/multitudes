@@ -6,13 +6,9 @@ function App() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [allProfiles, setAllProfiles] = useState([])
-  const [copaRewards, setCopaRewards] = useState([])
-  const [recentReleases, setRecentReleases] = useState([])
   const [activeTab, setActiveTab] = useState('login')
   const [showSendForm, setShowSendForm] = useState(null)
   const [showReleaseForm, setShowReleaseForm] = useState(null)
-  const [showCopaHistory, setShowCopaHistory] = useState(false)
-  const [showAdminActivity, setShowAdminActivity] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -48,8 +44,6 @@ function App() {
           setUser(session.user)
           await ensureProfileExists(session.user, client)
           await loadAllProfiles(client)
-          await loadCopaRewards(session.user.id, client)
-          await loadRecentReleases(client)
         }
       } catch (error) {
         setMessage('Connection failed')
@@ -80,8 +74,7 @@ function App() {
         username: username,
         email: authUser.email,
         dov_balance: isJPR333 ? 1000000 : 0,
-        djr_balance: isJPR333 ? 1000000 : 0,
-        copas_earned: 0
+        djr_balance: isJPR333 ? 1000000 : 0
       }
 
       const { data: createdProfile, error: createError } = await client
@@ -115,36 +108,6 @@ function App() {
       setAllProfiles(data || [])
     } catch (error) {
       console.error('Error loading profiles:', error)
-    }
-  }
-
-  const loadCopaRewards = async (userId, client = supabase) => {
-    try {
-      const { data, error } = await client
-        .from('copa_rewards')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-      
-      if (error) throw error
-      setCopaRewards(data || [])
-    } catch (error) {
-      console.error('Error loading Copa rewards:', error)
-    }
-  }
-
-  const loadRecentReleases = async (client = supabase) => {
-    try {
-      const { data, error } = await client
-        .from('token_releases')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10)
-      
-      if (error) throw error
-      setRecentReleases(data || [])
-    } catch (error) {
-      console.error('Error loading recent releases:', error)
     }
   }
 
@@ -194,8 +157,6 @@ function App() {
       if (profile) {
         setUser(authData.user)
         await loadAllProfiles()
-        await loadCopaRewards(authData.user.id)
-        await loadRecentReleases()
         setMessage('Registration successful!')
         setFormData({ email: '', password: '', username: '' })
       } else {
@@ -237,8 +198,6 @@ function App() {
       setUser(data.user)
       await ensureProfileExists(data.user)
       await loadAllProfiles()
-      await loadCopaRewards(data.user.id)
-      await loadRecentReleases()
       setFormData({ email: '', password: '', username: '' })
     } catch (err) {
       setMessage('Login error: ' + err.message)
@@ -254,13 +213,9 @@ function App() {
     setUser(null)
     setProfile(null)
     setAllProfiles([])
-    setCopaRewards([])
-    setRecentReleases([])
     setShowSettings(false)
     setShowSendForm(null)
     setShowReleaseForm(null)
-    setShowCopaHistory(false)
-    setShowAdminActivity(false)
     setMessage('')
     setFormData({ email: '', password: '', username: '' })
     setTransferData({ recipient: '', amount: '' })
@@ -329,7 +284,6 @@ function App() {
       
       await ensureProfileExists(user)
       await loadAllProfiles()
-      await loadRecentReleases()
     } catch (err) {
       setMessage('Transfer failed: ' + err.message)
     } finally {
@@ -351,38 +305,33 @@ function App() {
       return
     }
 
+    const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
+    if (currentBalance < amount) {
+      setMessage('Insufficient tokens')
+      return
+    }
+
     try {
       setIsReleasing(true)
 
-      const { data, error } = await supabase.rpc('release_tokens', {
-        token_type: tokenType,
-        amount: amount,
-        reason: reason
-      })
-
-      if (error) {
-        setMessage('Release failed: ' + error.message)
-        return
-      }
-
-      const result = typeof data === 'string' ? JSON.parse(data) : data
-      
-      if (result.success) {
-        if (result.copas_earned > 0) {
-          setMessage('Released ' + amount + ' ' + tokenType + ' and earned ' + result.copas_earned + ' Copas! 🏆')
-        } else {
-          setMessage('Released ' + amount + ' ' + tokenType + '!')
-        }
-        setReleaseData({ amount: '', reason: '' })
-        setShowReleaseForm(null)
-        
-        await ensureProfileExists(user)
-        await loadAllProfiles()
-        await loadCopaRewards(user.id)
-        await loadRecentReleases()
+      if (tokenType === 'DOV') {
+        await supabase
+          .from('profiles')
+          .update({ dov_balance: profile.dov_balance - amount })
+          .eq('id', user.id)
       } else {
-        setMessage(result.error || 'Release failed')
+        await supabase
+          .from('profiles')
+          .update({ djr_balance: profile.djr_balance - amount })
+          .eq('id', user.id)
       }
+
+      setMessage('Released ' + amount + ' ' + tokenType + '!')
+      setReleaseData({ amount: '', reason: '' })
+      setShowReleaseForm(null)
+      
+      await ensureProfileExists(user)
+      await loadAllProfiles()
     } catch (err) {
       setMessage('Release failed: ' + err.message)
     } finally {
@@ -394,275 +343,8 @@ function App() {
     return new Intl.NumberFormat().format(num || 0)
   }
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }
-
   const isAdmin = profile?.username === 'JPR333'
 
-  // Admin Activity Screen
-  if (user && showAdminActivity) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        backgroundColor: '#f5f5dc',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        padding: '2rem 1rem'
-      }}>
-        <div style={{
-          maxWidth: '400px',
-          margin: '0 auto'
-        }}>
-          <button
-            onClick={() => setShowAdminActivity(false)}
-            style={{
-              position: 'absolute',
-              top: '2rem',
-              left: '2rem',
-              background: 'rgba(255, 255, 255, 0.9)',
-              border: 'none',
-              borderRadius: '20px',
-              padding: '0.5rem 1rem',
-              fontSize: '1rem',
-              cursor: 'pointer'
-            }}
-          >
-            ← Back
-          </button>
-
-          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <h1 style={{
-              fontSize: '3rem',
-              color: '#d2691e',
-              marginBottom: '1rem',
-              fontWeight: 'normal'
-            }}>
-              📊 Release Activity
-            </h1>
-            <div style={{
-              background: 'rgba(210, 105, 30, 0.1)',
-              borderRadius: '15px',
-              padding: '0.75rem',
-              fontSize: '0.9rem',
-              color: '#8b4513'
-            }}>
-              Last 10 token releases across all users
-            </div>
-          </div>
-
-          <div style={{ maxHeight: '65vh', overflowY: 'auto' }}>
-            {recentReleases.length === 0 ? (
-              <div style={{
-                textAlign: 'center',
-                color: '#8b4513',
-                fontSize: '1.1rem',
-                padding: '2rem'
-              }}>
-                No releases yet
-              </div>
-            ) : (
-              recentReleases.map(release => (
-                <div
-                  key={release.id}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.9)',
-                    borderRadius: '15px',
-                    padding: '1rem',
-                    marginBottom: '1rem',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                    border: release.copas_earned > 0 ? '2px solid #d4af37' : 'none'
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '0.5rem'
-                  }}>
-                    <div style={{
-                      fontSize: '1.1rem',
-                      fontWeight: 'bold',
-                      color: '#d2691e'
-                    }}>
-                      {release.username}
-                    </div>
-                    <div style={{
-                      fontSize: '0.85rem',
-                      color: '#8b4513'
-                    }}>
-                      {formatDate(release.created_at)}
-                    </div>
-                  </div>
-                  
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '0.5rem'
-                  }}>
-                    <div style={{
-                      fontSize: '1rem',
-                      color: '#666'
-                    }}>
-                      Released {formatNumber(release.amount)} {release.token_type}
-                    </div>
-                    {release.copas_earned > 0 && (
-                      <div style={{
-                        fontSize: '0.9rem',
-                        color: '#d4af37',
-                        fontWeight: 'bold'
-                      }}>
-                        🏆 +{release.copas_earned} Copa{release.copas_earned !== 1 ? 's' : ''}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {release.reason && release.reason !== 'Token release' && (
-                    <div style={{
-                      fontSize: '0.85rem',
-                      color: '#888',
-                      fontStyle: 'italic',
-                      marginTop: '0.5rem'
-                    }}>
-                      "{release.reason}"
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    )
-
-  // Copa History Screen
-  if (user && showCopaHistory) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        backgroundColor: '#f5f5dc',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        padding: '2rem 1rem'
-      }}>
-        <div style={{
-          maxWidth: '400px',
-          margin: '0 auto'
-        }}>
-          <button
-            onClick={() => setShowCopaHistory(false)}
-            style={{
-              position: 'absolute',
-              top: '2rem',
-              left: '2rem',
-              background: 'rgba(255, 255, 255, 0.9)',
-              border: 'none',
-              borderRadius: '20px',
-              padding: '0.5rem 1rem',
-              fontSize: '1rem',
-              cursor: 'pointer'
-            }}
-          >
-            ← Back
-          </button>
-
-          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <h1 style={{
-              fontSize: '3rem',
-              color: '#d4af37',
-              marginBottom: '1rem',
-              fontWeight: 'normal'
-            }}>
-              🏆 Copa History
-            </h1>
-            <div style={{
-              background: 'rgba(212, 175, 55, 0.2)',
-              borderRadius: '20px',
-              padding: '1rem',
-              marginBottom: '2rem'
-            }}>
-              <h2 style={{
-                fontSize: '2rem',
-                color: '#d4af37',
-                margin: 0
-              }}>
-                Total Copas: {formatNumber(profile?.copas_earned || 0)}
-              </h2>
-            </div>
-          </div>
-
-          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-            {copaRewards.length === 0 ? (
-              <div style={{
-                textAlign: 'center',
-                color: '#8b4513',
-                fontSize: '1.1rem',
-                padding: '2rem'
-              }}>
-                No Copa rewards yet. Release tokens to earn Copas!
-              </div>
-            ) : (
-              copaRewards.map(reward => (
-                <div
-                  key={reward.id}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.9)',
-                    borderRadius: '15px',
-                    padding: '1rem',
-                    marginBottom: '1rem',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '0.5rem'
-                  }}>
-                    <div style={{
-                      fontSize: '1.5rem',
-                      fontWeight: 'bold',
-                      color: '#d4af37'
-                    }}>
-                      🏆 +{reward.copas_earned} Copas
-                    </div>
-                    <div style={{
-                      fontSize: '0.9rem',
-                      color: '#8b4513'
-                    }}>
-                      {formatDate(reward.created_at)}
-                    </div>
-                  </div>
-                  <div style={{
-                    fontSize: '0.9rem',
-                    color: '#666',
-                    marginBottom: '0.5rem'
-                  }}>
-                    Released: {reward.dov_released > 0 && reward.dov_released + ' DOV'}
-                    {reward.djr_released > 0 && reward.djr_released + ' DJR'}
-                  </div>
-                  {reward.reason && (
-                    <div style={{
-                      fontSize: '0.85rem',
-                      color: '#888',
-                      fontStyle: 'italic'
-                    }}>
-                      "{reward.reason}"
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Admin Send Form
   if (user && showSendForm) {
     return (
       <div style={{
@@ -777,11 +459,7 @@ function App() {
     )
   }
 
-  // User Release Form
   if (user && showReleaseForm) {
-    const copaRate = showReleaseForm === 'DOV' ? 10 : 100
-    const potentialCopas = Math.floor((parseFloat(releaseData.amount) || 0) / copaRate)
-
     return (
       <div style={{
         minHeight: '100vh',
@@ -814,34 +492,18 @@ function App() {
           <h1 style={{
             fontSize: '3rem',
             color: '#8b4513',
-            marginBottom: '1rem',
+            marginBottom: '2rem',
             fontWeight: 'normal'
           }}>
             Release {showReleaseForm}
           </h1>
 
-          <div style={{
-            background: 'rgba(212, 175, 55, 0.2)',
-            borderRadius: '15px',
-            padding: '0.75rem',
-            marginBottom: '2rem',
-            fontSize: '0.9rem',
-            color: '#8b4513'
-          }}>
-            🏆 Earn 1 Copa per {copaRate} {showReleaseForm} released
-            {potentialCopas > 0 && (
-              <div style={{ fontWeight: 'bold', marginTop: '0.5rem' }}>
-                You'll earn {potentialCopas} Copa{potentialCopas !== 1 ? 's' : ''}!
-              </div>
-            )}
-          </div>
-
           {message && (
             <div style={{
               padding: '1rem',
               marginBottom: '2rem',
-              backgroundColor: message.includes('Released') || message.includes('earned') ? '#d4edda' : '#f8d7da',
-              color: message.includes('Released') || message.includes('earned') ? '#155724' : '#721c24',
+              backgroundColor: message.includes('Released') ? '#d4edda' : '#f8d7da',
+              color: message.includes('Released') ? '#155724' : '#721c24',
               borderRadius: '20px'
             }}>
               {message}
@@ -965,27 +627,6 @@ function App() {
                 padding: '0.5rem',
                 zIndex: 1000
               }}>
-                {isAdmin && (
-                  <button
-                    onClick={() => {
-                      setShowAdminActivity(true)
-                      setShowSettings(false)
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 1rem',
-                      backgroundColor: 'transparent',
-                      color: '#d2691e',
-                      border: 'none',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      marginBottom: '0.25rem'
-                    }}
-                  >
-                    📊 Release Activity
-                  </button>
-                )}
                 <button
                   onClick={handleLogout}
                   style={{
@@ -1005,40 +646,13 @@ function App() {
             )}
           </div>
 
-          {!isAdmin && (
-            <div 
-              style={{
-                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(255, 215, 0, 0.1) 100%)',
-                borderRadius: '20px',
-                padding: '1rem',
-                marginBottom: '2rem',
-                cursor: 'pointer',
-                transition: 'transform 0.2s ease'
-              }}
-              onClick={() => setShowCopaHistory(true)}
-            >
-              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏆</div>
-              <div style={{
-                fontSize: '1.5rem',
-                fontWeight: 'bold',
-                color: '#d4af37',
-                marginBottom: '0.25rem'
-              }}>
-                {formatNumber(profile?.copas_earned || 0)} Copas
-              </div>
-              <div style={{ fontSize: '0.9rem', color: '#8b4513' }}>
-                Tap to view history
-              </div>
-            </div>
-          )}
-
           {message && (
             <div style={{
               padding: '1rem',
               marginBottom: '2rem',
-              backgroundColor: message.includes('successful') || message.includes('Sent') || message.includes('Released') || message.includes('earned') ? '#d4edda' : 
+              backgroundColor: message.includes('successful') || message.includes('Sent') || message.includes('Released') ? '#d4edda' : 
                              message.includes('failed') ? '#f8d7da' : '#fff3cd',
-              color: message.includes('successful') || message.includes('Sent') || message.includes('Released') || message.includes('earned') ? '#155724' : 
+              color: message.includes('successful') || message.includes('Sent') || message.includes('Released') ? '#155724' : 
                      message.includes('failed') ? '#721c24' : '#856404',
               borderRadius: '15px',
               fontSize: '0.9rem'
