@@ -7,10 +7,12 @@ function App() {
   const [profile, setProfile] = useState(null)
   const [allProfiles, setAllProfiles] = useState([])
   const [copaRewards, setCopaRewards] = useState([])
+  const [recentReleases, setRecentReleases] = useState([])
   const [activeTab, setActiveTab] = useState('login')
   const [showSendForm, setShowSendForm] = useState(null)
   const [showReleaseForm, setShowReleaseForm] = useState(null)
   const [showCopaHistory, setShowCopaHistory] = useState(false)
+  const [showAdminActivity, setShowAdminActivity] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -47,6 +49,7 @@ function App() {
           await ensureProfileExists(session.user, client)
           await loadAllProfiles(client)
           await loadCopaRewards(session.user.id, client)
+          await loadRecentReleases(client)
         }
       } catch (error) {
         setMessage('Connection failed')
@@ -130,6 +133,21 @@ function App() {
     }
   }
 
+  const loadRecentReleases = async (client = supabase) => {
+    try {
+      const { data, error } = await client
+        .from('token_releases')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10)
+      
+      if (error) throw error
+      setRecentReleases(data || [])
+    } catch (error) {
+      console.error('Error loading recent releases:', error)
+    }
+  }
+
   const handleRegister = async () => {
     if (!supabase) {
       setMessage('Please wait for connection...')
@@ -177,6 +195,7 @@ function App() {
         setUser(authData.user)
         await loadAllProfiles()
         await loadCopaRewards(authData.user.id)
+        await loadRecentReleases()
         setMessage('Registration successful!')
         setFormData({ email: '', password: '', username: '' })
       } else {
@@ -219,6 +238,7 @@ function App() {
       await ensureProfileExists(data.user)
       await loadAllProfiles()
       await loadCopaRewards(data.user.id)
+      await loadRecentReleases()
       setFormData({ email: '', password: '', username: '' })
     } catch (err) {
       setMessage('Login error: ' + err.message)
@@ -235,10 +255,12 @@ function App() {
     setProfile(null)
     setAllProfiles([])
     setCopaRewards([])
+    setRecentReleases([])
     setShowSettings(false)
     setShowSendForm(null)
     setShowReleaseForm(null)
     setShowCopaHistory(false)
+    setShowAdminActivity(false)
     setMessage('')
     setFormData({ email: '', password: '', username: '' })
     setTransferData({ recipient: '', amount: '' })
@@ -307,6 +329,7 @@ function App() {
       
       await ensureProfileExists(user)
       await loadAllProfiles()
+      await loadRecentReleases()
     } catch (err) {
       setMessage('Transfer failed: ' + err.message)
     } finally {
@@ -356,6 +379,7 @@ function App() {
         await ensureProfileExists(user)
         await loadAllProfiles()
         await loadCopaRewards(user.id)
+        await loadRecentReleases()
       } else {
         setMessage(result.error || 'Release failed')
       }
@@ -379,6 +403,141 @@ function App() {
   }
 
   const isAdmin = profile?.username === 'JPR333'
+
+  // Admin Activity Screen
+  if (user && showAdminActivity) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#f5f5dc',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '2rem 1rem'
+      }}>
+        <div style={{
+          maxWidth: '400px',
+          margin: '0 auto'
+        }}>
+          <button
+            onClick={() => setShowAdminActivity(false)}
+            style={{
+              position: 'absolute',
+              top: '2rem',
+              left: '2rem',
+              background: 'rgba(255, 255, 255, 0.9)',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '0.5rem 1rem',
+              fontSize: '1rem',
+              cursor: 'pointer'
+            }}
+          >
+            ← Back
+          </button>
+
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h1 style={{
+              fontSize: '3rem',
+              color: '#d2691e',
+              marginBottom: '1rem',
+              fontWeight: 'normal'
+            }}>
+              📊 Release Activity
+            </h1>
+            <div style={{
+              background: 'rgba(210, 105, 30, 0.1)',
+              borderRadius: '15px',
+              padding: '0.75rem',
+              fontSize: '0.9rem',
+              color: '#8b4513'
+            }}>
+              Last 10 token releases across all users
+            </div>
+          </div>
+
+          <div style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+            {recentReleases.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                color: '#8b4513',
+                fontSize: '1.1rem',
+                padding: '2rem'
+              }}>
+                No releases yet
+              </div>
+            ) : (
+              recentReleases.map(release => (
+                <div
+                  key={release.id}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    borderRadius: '15px',
+                    padding: '1rem',
+                    marginBottom: '1rem',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    border: release.copas_earned > 0 ? '2px solid #d4af37' : 'none'
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <div style={{
+                      fontSize: '1.1rem',
+                      fontWeight: 'bold',
+                      color: '#d2691e'
+                    }}>
+                      {release.username}
+                    </div>
+                    <div style={{
+                      fontSize: '0.85rem',
+                      color: '#8b4513'
+                    }}>
+                      {formatDate(release.created_at)}
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <div style={{
+                      fontSize: '1rem',
+                      color: '#666'
+                    }}>
+                      Released {formatNumber(release.amount)} {release.token_type}
+                    </div>
+                    {release.copas_earned > 0 && (
+                      <div style={{
+                        fontSize: '0.9rem',
+                        color: '#d4af37',
+                        fontWeight: 'bold'
+                      }}>
+                        🏆 +{release.copas_earned} Copa{release.copas_earned !== 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {release.reason && release.reason !== 'Token release' && (
+                    <div style={{
+                      fontSize: '0.85rem',
+                      color: '#888',
+                      fontStyle: 'italic',
+                      marginTop: '0.5rem'
+                    }}>
+                      "{release.reason}"
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    )
 
   // Copa History Screen
   if (user && showCopaHistory) {
@@ -806,6 +965,27 @@ function App() {
                 padding: '0.5rem',
                 zIndex: 1000
               }}>
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setShowAdminActivity(true)
+                      setShowSettings(false)
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      backgroundColor: 'transparent',
+                      color: '#d2691e',
+                      border: 'none',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      marginBottom: '0.25rem'
+                    }}
+                  >
+                    📊 Release Activity
+                  </button>
+                )}
                 <button
                   onClick={handleLogout}
                   style={{
