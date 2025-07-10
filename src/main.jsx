@@ -8,6 +8,7 @@ function App() {
   const [allProfiles, setAllProfiles] = useState([])
   const [activeTab, setActiveTab] = useState('login')
   const [showSendForm, setShowSendForm] = useState(null)
+  const [showReleaseForm, setShowReleaseForm] = useState(null)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -17,9 +18,14 @@ function App() {
     recipient: '',
     amount: ''
   })
+  const [releaseData, setReleaseData] = useState({
+    amount: '',
+    reason: ''
+  })
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [isTransferring, setIsTransferring] = useState(false)
+  const [isReleasing, setIsReleasing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() => {
@@ -209,63 +215,114 @@ function App() {
     setAllProfiles([])
     setShowSettings(false)
     setShowSendForm(null)
+    setShowReleaseForm(null)
     setMessage('')
     setFormData({ email: '', password: '', username: '' })
     setTransferData({ recipient: '', amount: '' })
+    setReleaseData({ amount: '', reason: '' })
   }
 
- const handleTransfer = async (tokenType) => {
-  if (!supabase || !profile) {
-    setMessage('Please wait for connection...')
-    return
-  }
-
-  const recipient = transferData.recipient.trim().toUpperCase()
-  const amount = parseFloat(transferData.amount)
-
-  if (!recipient || !amount) {
-    setMessage('Please fill in recipient and amount')
-    return
-  }
-
-  try {
-    setIsTransferring(true)
-
-    // Use secure server-side function
-    const { data, error } = await supabase.rpc('secure_transfer_tokens', {
-      recipient_username: recipient,
-      token_type: tokenType,
-      amount: amount
-    })
-
-    if (error) {
-      setMessage('Transfer failed: ' + error.message)
+  const handleAdminTransfer = async (tokenType) => {
+    if (!supabase || !profile) {
+      setMessage('Please wait for connection...')
       return
     }
 
-    const result = typeof data === 'string' ? JSON.parse(data) : data
-    
-    if (result.success) {
-      setMessage(`Sent ${amount} ${tokenType} to ${recipient}!`)
-      setTransferData({ recipient: '', amount: '' })
-      setShowSendForm(null)
-      
-      // Refresh balances
-      await ensureProfileExists(user)
-      await loadAllProfiles()
-    } else {
-      setMessage(result.error || 'Transfer failed')
+    const recipient = transferData.recipient.trim().toUpperCase()
+    const amount = parseFloat(transferData.amount)
+
+    if (!recipient || !amount) {
+      setMessage('Please fill in recipient and amount')
+      return
     }
-  } catch (err) {
-    setMessage('Transfer failed: ' + err.message)
-  } finally {
-    setIsTransferring(false)
+
+    try {
+      setIsTransferring(true)
+
+      const { data, error } = await supabase.rpc('admin_transfer_tokens', {
+        recipient_username: recipient,
+        token_type: tokenType,
+        amount: amount
+      })
+
+      if (error) {
+        setMessage('Transfer failed: ' + error.message)
+        return
+      }
+
+      const result = typeof data === 'string' ? JSON.parse(data) : data
+      
+      if (result.success) {
+        setMessage(`Sent ${amount} ${tokenType} to ${recipient}!`)
+        setTransferData({ recipient: '', amount: '' })
+        setShowSendForm(null)
+        
+        await ensureProfileExists(user)
+        await loadAllProfiles()
+      } else {
+        setMessage(result.error || 'Transfer failed')
+      }
+    } catch (err) {
+      setMessage('Transfer failed: ' + err.message)
+    } finally {
+      setIsTransferring(false)
+    }
   }
-}
+
+  const handleRelease = async (tokenType) => {
+    if (!supabase || !profile) {
+      setMessage('Please wait for connection...')
+      return
+    }
+
+    const amount = parseFloat(releaseData.amount)
+    const reason = releaseData.reason.trim() || 'Token release'
+
+    if (!amount) {
+      setMessage('Please enter amount')
+      return
+    }
+
+    try {
+      setIsReleasing(true)
+
+      const { data, error } = await supabase.rpc('release_tokens', {
+        token_type: tokenType,
+        amount: amount,
+        reason: reason
+      })
+
+      if (error) {
+        setMessage('Release failed: ' + error.message)
+        return
+      }
+
+      const result = typeof data === 'string' ? JSON.parse(data) : data
+      
+      if (result.success) {
+        setMessage(`Released ${amount} ${tokenType}!`)
+        setReleaseData({ amount: '', reason: '' })
+        setShowReleaseForm(null)
+        
+        await ensureProfileExists(user)
+        await loadAllProfiles()
+      } else {
+        setMessage(result.error || 'Release failed')
+      }
+    } catch (err) {
+      setMessage('Release failed: ' + err.message)
+    } finally {
+      setIsReleasing(false)
+    }
+  }
+
   const formatNumber = (num) => {
     return new Intl.NumberFormat().format(num || 0)
   }
 
+  const isAdmin = profile?.username === 'JPR333'
+
+  // Admin Send Form
   if (user && showSendForm) {
     return (
       <div style={{
@@ -358,7 +415,7 @@ function App() {
           </div>
 
           <button
-            onClick={() => handleTransfer(showSendForm)}
+            onClick={() => handleAdminTransfer(showSendForm)}
             disabled={isTransferring}
             style={{
               background: 'linear-gradient(45deg, #d2691e, #cd853f)',
@@ -374,6 +431,120 @@ function App() {
             }}
           >
             {isTransferring ? 'Sending...' : 'Send'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // User Release Form
+  if (user && showReleaseForm) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#f5f5dc',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '2rem 1rem'
+      }}>
+        <div style={{
+          maxWidth: '400px',
+          margin: '0 auto',
+          textAlign: 'center'
+        }}>
+          <button
+            onClick={() => setShowReleaseForm(null)}
+            style={{
+              position: 'absolute',
+              top: '2rem',
+              left: '2rem',
+              background: 'rgba(255, 255, 255, 0.9)',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '0.5rem 1rem',
+              fontSize: '1rem',
+              cursor: 'pointer'
+            }}
+          >
+            ← Back
+          </button>
+
+          <h1 style={{
+            fontSize: '3rem',
+            color: '#8b4513',
+            marginBottom: '2rem',
+            fontWeight: 'normal'
+          }}>
+            Release {showReleaseForm}
+          </h1>
+
+          {message && (
+            <div style={{
+              padding: '1rem',
+              marginBottom: '2rem',
+              backgroundColor: message.includes('Released') ? '#d4edda' : '#f8d7da',
+              color: message.includes('Released') ? '#155724' : '#721c24',
+              borderRadius: '20px'
+            }}>
+              {message}
+            </div>
+          )}
+
+          <div style={{ marginBottom: '2rem' }}>
+            <input
+              type="number"
+              value={releaseData.amount}
+              onChange={(e) => setReleaseData({ ...releaseData, amount: e.target.value })}
+              placeholder="Amount to Release"
+              min="0"
+              step="0.01"
+              style={{
+                width: '100%',
+                padding: '1rem',
+                fontSize: '1.2rem',
+                border: '2px solid #8b4513',
+                borderRadius: '25px',
+                textAlign: 'center',
+                marginBottom: '1rem',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+
+            <input
+              type="text"
+              value={releaseData.reason}
+              onChange={(e) => setReleaseData({ ...releaseData, reason: e.target.value })}
+              placeholder="Reason (optional)"
+              style={{
+                width: '100%',
+                padding: '1rem',
+                fontSize: '1.2rem',
+                border: '2px solid #8b4513',
+                borderRadius: '25px',
+                textAlign: 'center',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          <button
+            onClick={() => handleRelease(showReleaseForm)}
+            disabled={isReleasing}
+            style={{
+              background: 'linear-gradient(45deg, #8b4513, #a0522d)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '25px',
+              padding: '1rem 3rem',
+              fontSize: '1.2rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              opacity: isReleasing ? 0.5 : 1,
+              boxShadow: '0 4px 15px rgba(139, 69, 19, 0.3)'
+            }}
+          >
+            {isReleasing ? 'Releasing...' : 'Release'}
           </button>
         </div>
       </div>
@@ -408,7 +579,9 @@ function App() {
               alignItems: 'center',
               gap: '0.5rem'
             }}>
-              <span style={{ fontWeight: '500' }}>{profile?.username}</span>
+              <span style={{ fontWeight: '500' }}>
+                {profile?.username} {isAdmin && '👑'}
+              </span>
               <button
                 onClick={() => setShowSettings(!showSettings)}
                 style={{
@@ -456,9 +629,9 @@ function App() {
             <div style={{
               padding: '1rem',
               marginBottom: '2rem',
-              backgroundColor: message.includes('successful') || message.includes('Sent') ? '#d4edda' : 
+              backgroundColor: message.includes('successful') || message.includes('Sent') || message.includes('Released') ? '#d4edda' : 
                              message.includes('failed') ? '#f8d7da' : '#fff3cd',
-              color: message.includes('successful') || message.includes('Sent') ? '#155724' : 
+              color: message.includes('successful') || message.includes('Sent') || message.includes('Released') ? '#155724' : 
                      message.includes('failed') ? '#721c24' : '#856404',
               borderRadius: '15px',
               fontSize: '0.9rem'
@@ -490,22 +663,41 @@ function App() {
               {formatNumber(profile?.dov_balance)}
             </div>
             <br />
-            <button
-              onClick={() => setShowSendForm('DOV')}
-              style={{
-                background: 'linear-gradient(45deg, #d2691e, #cd853f)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '25px',
-                padding: '1rem 3rem',
-                fontSize: '1.2rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
-              }}
-            >
-              Send
-            </button>
+            {isAdmin ? (
+              <button
+                onClick={() => setShowSendForm('DOV')}
+                style={{
+                  background: 'linear-gradient(45deg, #d2691e, #cd853f)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '1rem 3rem',
+                  fontSize: '1.2rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
+                }}
+              >
+                Send
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowReleaseForm('DOV')}
+                style={{
+                  background: 'linear-gradient(45deg, #8b4513, #a0522d)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '1rem 3rem',
+                  fontSize: '1.2rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(139, 69, 19, 0.3)'
+                }}
+              >
+                Release
+              </button>
+            )}
           </div>
 
           <div>
@@ -531,22 +723,41 @@ function App() {
               {formatNumber(profile?.djr_balance)}
             </div>
             <br />
-            <button
-              onClick={() => setShowSendForm('DJR')}
-              style={{
-                background: 'linear-gradient(45deg, #d2691e, #cd853f)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '25px',
-                padding: '1rem 3rem',
-                fontSize: '1.2rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
-              }}
-            >
-              Send
-            </button>
+            {isAdmin ? (
+              <button
+                onClick={() => setShowSendForm('DJR')}
+                style={{
+                  background: 'linear-gradient(45deg, #d2691e, #cd853f)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '1rem 3rem',
+                  fontSize: '1.2rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
+                }}
+              >
+                Send
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowReleaseForm('DJR')}
+                style={{
+                  background: 'linear-gradient(45deg, #8b4513, #a0522d)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '1rem 3rem',
+                  fontSize: '1.2rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(139, 69, 19, 0.3)'
+                }}
+              >
+                Release
+              </button>
+            )}
           </div>
         </div>
       </div>
