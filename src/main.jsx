@@ -912,6 +912,234 @@ function App() {
                   fontSize: '1.2rem',
                   fontWeight: '500',
                   cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(139, 69, 19, 0.3)'
+                }}
+              >
+                Release
+              </button>
+            )}
+          </div>
+
+          <div>
+            <h2 style={{
+              fontSize: '3.5rem',
+              color: '#8b4513',
+              margin: '0 0 1rem 0',
+              fontWeight: 'normal'
+            }}>
+              Palomitas
+            </h2>
+            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🕊️</div>
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: '25px',
+              padding: '0.75rem 1.5rem',
+              display: 'inline-block',
+              fontSize: '1.5rem',
+              fontWeight: '500',
+              color: '#8b4513',
+              marginBottom: '2rem'
+            }}>
+              {formatNumber(profile?.djr_balance)}
+            </div>
+            <br />
+            {isAdmin ? (
+              <button
+                onClick={() => setShowSendForm('DJR')}
+                style={{
+                  background: 'linear-gradient(45deg, #d2691e, #cd853f)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '1rem 3rem',
+                  fontSize: '1.2rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
+                }}
+              >
+                Send
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowReleaseForm('DJR')}
+                style={{
+                  background: 'linear-gradient(45deg, #8b4513, #a0522d)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '1rem 3rem',
+                  fontSize: '1.2rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(139, 69, 19, 0.3)'
+                }}
+              >
+                Release
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#f5f5dc',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1rem'
+    }}>
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: '25px',
+        padding: '2rem',
+        width: '100%',
+        maxWidth: '400px',
+        textAlign: 'center',
+        boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)'
+      }}>
+        <h1 style={{
+          fontSize: '2.5rem',
+          fontWeight: 'bold',
+          margin: '0 0 0.5rem 0',
+          color: '#d2691e'
+        }}>
+          GRAIL
+        </h1>
+        <p style={{ color: '#8b4513', margin: '0 0 2rem 0' }}>Token Exchange</p>
+
+        <div style={{ display: 'flex', marginBottom: '1.5rem', borderRadius: '20px', overflow: 'hidden' }}>
+          <button
+            onClick={() => setActiveTab('login')}
+            style={{
+              flex: 1,
+              padding: '1rem',
+              backgroundColor: activeTab === 'login' ? '#d2691e' : '#f0f0f0',
+              color: activeTab === 'login' ? 'white' : '#8b4513',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            Login
+          </button>
+          <button
+            onClick={() => setActiveTab('register')}
+            style={{
+              flex: 1,
+              padding: '1rem',
+              backgroundColor: activeTab === 'register' ? '#d2691e' : '#f0f0f0',
+              color: activeTab === 'register' ? 'white' : '#8b4513',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            Register
+          </button>
+        </div>
+
+        {message && (
+          <div style={{
+            padding: '1rem',
+            borderRadius: '15px',
+            marginBottom: '1rem',
+            backgroundColor: message.includes('successful') ? '#d4edda' : 
+                           message.includes('failed') ? '#f8d7da' : '#fff3cd',
+            color: message.includes('successful') ? '#155724' : 
+                   message.includes('failed') ? '#721c24' : '#856404',
+            fontSize: '0.9rem'
+          }}>
+            {message}
+          </div>
+        )}
+
+        <input
+          type="email"
+          value={formData.email}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          placeholder="Email"
+          style={{
+            width: '100%',
+            padding: '1rem',
+            border: '2px solid #e0e0e0',
+            borderRadius: '15px',
+            marginBottom: '1rem',
+            boxSizing: 'border-box',
+            fontSize: '1rem',
+            outline: 'none'
+          }}
+        />
+
+        <input
+          type="password"
+          value={formData.password}
+          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          placeholder="Password"
+          style={{
+            width: '100%',
+            padding: '1rem',
+            border: '2px solid #e0e0e0',
+            borderRadius: '15px',
+            marginBottom: '1rem',
+            boxSizing: 'border-box',
+            fontSize: '1rem',
+            outline: 'none'
+          }}
+        />
+
+        {activeTab === 'register' && (
+          <input
+            type="text"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value.toUpperCase() })}
+            placeholder="Username (ABC123)"
+            maxLength={6}
+            style={{
+              width: '100%',
+              padding: '1rem',
+              border: '2px solid #e0e0e0',
+              borderRadius: '15px',
+              marginBottom: '1rem',
+              boxSizing: 'border-box',
+              fontSize: '1rem',
+              outline: 'none'
+            }}
+          />
+        )}
+
+        <button 
+          onClick={activeTab === 'login' ? handleLogin : handleRegister}
+          disabled={loading || !supabase}
+          style={{
+            width: '100%',
+            padding: '1rem',
+            background: 'linear-gradient(45deg, #d2691e, #cd853f)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '15px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '1rem',
+            opacity: (loading || !supabase) ? 0.5 : 1,
+            boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
+          }}
+        >
+          {loading ? 'Loading...' : (activeTab === 'login' ? 'Login' : 'Register')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />)',
+                  fontWeight: '500',
+                  cursor: 'pointer',
                   boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
                 }}
               >
