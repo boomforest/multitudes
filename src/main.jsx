@@ -668,7 +668,7 @@ function App() {
                 zIndex: 1000,
                 minWidth: '280px'
               }}>
-                {/* Simple Wallet Input */}
+                {/* Wallet Input Component */}
                 <WalletInput 
                   onWalletSave={handleWalletSave}
                   currentWallet={profile?.wallet_address}
