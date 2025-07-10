@@ -301,7 +301,7 @@ function App() {
           .eq('id', recipientProfile.id)
       }
 
-      setMessage(`Sent ${amount} ${tokenType} to ${recipient}!`)
+      setMessage('Sent ' + amount + ' ' + tokenType + ' to ' + recipient + '!')
       setTransferData({ recipient: '', amount: '' })
       setShowSendForm(null)
       
@@ -346,9 +346,9 @@ function App() {
       
       if (result.success) {
         if (result.copas_earned > 0) {
-          setMessage(`Released ${amount} ${tokenType} and earned ${result.copas_earned} Copas! 🏆`)
+          setMessage('Released ' + amount + ' ' + tokenType + ' and earned ' + result.copas_earned + ' Copas! 🏆')
         } else {
-          setMessage(`Released ${amount} ${tokenType}!`)
+          setMessage('Released ' + amount + ' ' + tokenType + '!')
         }
         setReleaseData({ amount: '', reason: '' })
         setShowReleaseForm(null)
@@ -482,8 +482,8 @@ function App() {
                     color: '#666',
                     marginBottom: '0.5rem'
                   }}>
-                    Released: {reward.dov_released > 0 && `${reward.dov_released} DOV`}
-                    {reward.djr_released > 0 && `${reward.djr_released} DJR`}
+                    Released: {reward.dov_released > 0 && reward.dov_released + ' DOV'}
+                    {reward.djr_released > 0 && reward.djr_released + ' DJR'}
                   </div>
                   {reward.reason && (
                     <div style={{
@@ -825,26 +825,19 @@ function App() {
             )}
           </div>
 
-          {/* Copa Trophy Display */}
           {!isAdmin && (
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(255, 215, 0, 0.1) 100%)',
-              borderRadius: '20px',
-              padding: '1rem',
-              marginBottom: '2rem',
-              cursor: 'pointer',
-              transition: 'transform 0.2s ease'
-            }}
-            onClick={() => setShowCopaHistory(true)}
-            onMouseOver={(e) => e.target.style.transform = 'scale(1.02)'}
-            onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+            <div 
+              style={{
+                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(255, 215, 0, 0.1) 100%)',
+                borderRadius: '20px',
+                padding: '1rem',
+                marginBottom: '2rem',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease'
+              }}
+              onClick={() => setShowCopaHistory(true)}
             >
-              <div style={{
-                fontSize: '2rem',
-                marginBottom: '0.5rem'
-              }}>
-                🏆
-              </div>
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏆</div>
               <div style={{
                 fontSize: '1.5rem',
                 fontWeight: 'bold',
@@ -853,10 +846,7 @@ function App() {
               }}>
                 {formatNumber(profile?.copas_earned || 0)} Copas
               </div>
-              <div style={{
-                fontSize: '0.9rem',
-                color: '#8b4513'
-              }}>
+              <div style={{ fontSize: '0.9rem', color: '#8b4513' }}>
                 Tap to view history
               </div>
             </div>
@@ -905,6 +895,23 @@ function App() {
                 onClick={() => setShowSendForm('DOV')}
                 style={{
                   background: 'linear-gradient(45deg, #d2691e, #cd853f)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '25px',
+                  padding: '1rem 3rem',
+                  fontSize: '1.2rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
+                }}
+              >
+                Send
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowReleaseForm('DOV')}
+                style={{
+                  background: 'linear-gradient(45deg, #8b4513, #a0522d)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '25px',
@@ -1137,21 +1144,4 @@ function App() {
   )
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />)',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
-                }}
-              >
-                Send
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowReleaseForm('DOV')}
-                style={{
-                  background: 'linear-gradient(45deg, #8b4513, #a0522d)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '25px',
-                  padding: '1rem 3rem',
-                  fontSize: '1.2rem
+ReactDOM.createRoot(document.getElementById('root')).render(<App />)
