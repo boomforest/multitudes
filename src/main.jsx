@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client'
 function App() {
   const [supabase, setSupabase] = useState(null);
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('login');
   const [formData, setFormData] = useState({
     email: '',
@@ -29,7 +30,7 @@ function App() {
         const { data: { session } } = await client.auth.getSession();
         if (session?.user) {
           setUser(session.user);
-          setMessage('Welcome back!');
+          await loadUserProfile(session.user.id, client);
         }
       } catch (error) {
         setMessage('❌ Supabase connection failed');
@@ -39,6 +40,26 @@ function App() {
 
     initSupabase();
   }, []);
+
+  const loadUserProfile = async (userId, client = supabase) => {
+    try {
+      const { data, error } = await client
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Profile error:', error);
+        setMessage('Profile not found');
+      } else {
+        setProfile(data);
+        setMessage(`Welcome back, ${data.username}!`);
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
 
   const handleRegister = async () => {
     if (!supabase) {
@@ -73,6 +94,8 @@ function App() {
       } else {
         setMessage('✅ Registration successful!');
         setUser(data.user);
+        // Try to load profile after a short delay
+        setTimeout(() => loadUserProfile(data.user.id), 1000);
       }
     } catch (err) {
       setMessage('❌ Registration error: ' + err.message);
@@ -104,6 +127,7 @@ function App() {
       } else {
         setMessage('✅ Login successful!');
         setUser(data.user);
+        await loadUserProfile(data.user.id);
       }
     } catch (err) {
       setMessage('❌ Login error: ' + err.message);
@@ -117,8 +141,14 @@ function App() {
       await supabase.auth.signOut();
     }
     setUser(null);
+    setProfile(null);
     setMessage('Logged out');
     setFormData({ email: '', password: '', username: '' });
+  };
+
+  // Format numbers with commas
+  const formatNumber = (num) => {
+    return new Intl.NumberFormat().format(num || 0);
   };
 
   if (user) {
@@ -137,23 +167,64 @@ function App() {
           borderRadius: '0.5rem',
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
           padding: '1.5rem',
-          maxWidth: '28rem',
-          textAlign: 'center'
+          maxWidth: '32rem',
+          width: '100%'
         }}>
-          <h1>🛡️ Token Exchange</h1>
-          <p>Welcome, {user.user_metadata?.username || user.email}!</p>
-          <p>Supabase Status: {supabase ? '✅ Connected' : '⏳ Connecting...'}</p>
-          <p>Your token balances will appear here...</p>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h1>🛡️ Token Exchange</h1>
+            <p>Welcome, {profile?.username || user.email}!</p>
+          </div>
+
+          {/* Token Balances */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>Your Tokens</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                padding: '1rem',
+                borderRadius: '0.5rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ fontWeight: '600', color: '#1e40af', margin: 0 }}>Palomas (DOV)</h3>
+                    <p style={{ fontSize: '0.875rem', color: '#3730a3', margin: '0.25rem 0 0 0' }}>Doves</p>
+                  </div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e40af' }}>
+                    {formatNumber(profile?.dov_balance)}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)',
+                padding: '1rem',
+                borderRadius: '0.5rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ fontWeight: '600', color: '#7c3aed', margin: 0 }}>Palomitas (DJR)</h3>
+                    <p style={{ fontSize: '0.875rem', color: '#6b21a8', margin: '0.25rem 0 0 0' }}>Little Doves</p>
+                  </div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#7c3aed' }}>
+                    {formatNumber(profile?.djr_balance)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <button 
             onClick={handleLogout}
             style={{
+              width: '100%',
               padding: '0.5rem 1rem',
               backgroundColor: '#ef4444',
               color: 'white',
               border: 'none',
               borderRadius: '0.375rem',
               cursor: 'pointer',
-              marginTop: '1rem'
+              fontWeight: '500'
             }}
           >
             🚪 Logout
