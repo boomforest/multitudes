@@ -1,16 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 
-// Add Supabase
-const { createClient } = await import('@supabase/supabase-js');
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
-import React, { useState, useEffect } from 'react'
-import ReactDOM from 'react-dom/client'
-
+// Add Supabase import inside the function to avoid top-level await issues
 function App() {
+  const [supabase, setSupabase] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -20,13 +13,39 @@ function App() {
     username: ''
   });
 
-  // Simple login form (no Supabase yet)
+  // Initialize Supabase when component mounts
+  useEffect(() => {
+    const initSupabase = async () => {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabaseClient = createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_ANON_KEY
+        );
+        setSupabase(supabaseClient);
+        setMessage('✅ Supabase connected!');
+      } catch (error) {
+        setMessage('❌ Supabase connection failed');
+        console.error('Supabase error:', error);
+      }
+    };
+
+    initSupabase();
+  }, []);
+
+  // Simple login form (with Supabase test)
   const handleRegister = () => {
     if (!formData.email || !formData.password || !formData.username) {
       setMessage('Please fill in all fields');
       return;
     }
-    setMessage('Registration would work here!');
+    
+    if (supabase) {
+      setMessage('Supabase is ready for registration!');
+    } else {
+      setMessage('Supabase not connected yet');
+    }
+    
     setUser({ username: formData.username });
   };
 
@@ -70,82 +89,4 @@ function App() {
       width: '100%',
       padding: '0.5rem 0.75rem',
       border: '1px solid #d1d5db',
-      borderRadius: '0.375rem',
-      marginBottom: '1rem',
-      boxSizing: 'border-box'
-    }
-  };
-
-  if (user) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h1>🛡️ Token Exchange</h1>
-          <p>Welcome, {user.username}!</p>
-          <p>Token features will go here...</p>
-          <button onClick={handleLogout} style={{...styles.button, backgroundColor: '#ef4444'}}>
-            🚪 Logout
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={{textAlign: 'center', marginBottom: '2rem'}}>
-          <h1>🛡️ Token Exchange</h1>
-          <p>Secure DOV & DJR token trading</p>
-        </div>
-
-        {message && (
-          <div style={{
-            padding: '0.75rem',
-            borderRadius: '0.375rem',
-            marginBottom: '1rem',
-            backgroundColor: message.includes('successful') ? '#d1fae5' : '#fee2e2',
-            color: message.includes('successful') ? '#065f46' : '#991b1b'
-          }}>
-            {message}
-          </div>
-        )}
-
-        <input
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          style={styles.input}
-          placeholder="Email"
-        />
-
-        <input
-          type="password"
-          value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          style={styles.input}
-          placeholder="Password"
-        />
-
-        <input
-          type="text"
-          value={formData.username}
-          onChange={(e) => setFormData({ ...formData, username: e.target.value.toUpperCase() })}
-          style={styles.input}
-          placeholder="Username (ABC123)"
-          maxLength={6}
-        />
-
-        <button onClick={handleRegister} style={styles.button}>
-          Register
-        </button>
-        
-        <button onClick={handleLogin} style={{...styles.button, backgroundColor: '#10b981'}}>
-          Login
-        </button>
-      </div>
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+      borderRadius:
