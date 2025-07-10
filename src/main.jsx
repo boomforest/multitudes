@@ -271,25 +271,31 @@ function App() {
       return
     }
 
-    const recipientProfile = allProfiles.find(p => p.username === recipient)
-    if (!recipientProfile) {
-      setMessage('Recipient not found')
-      return
-    }
-
-    if (recipientProfile.id === user.id) {
-      setMessage('Cannot send to yourself')
-      return
-    }
-
-    const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
-    if (currentBalance < amount) {
-      setMessage('Insufficient tokens')
-      return
-    }
-
     try {
       setIsTransferring(true)
+
+      // Search for recipient in database directly
+      const { data: recipientProfile, error: findError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('username', recipient)
+        .single()
+
+      if (findError || !recipientProfile) {
+        setMessage('Recipient not found')
+        return
+      }
+
+      if (recipientProfile.id === user.id) {
+        setMessage('Cannot send to yourself')
+        return
+      }
+
+      const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
+      if (currentBalance < amount) {
+        setMessage('Insufficient tokens')
+        return
+      }
 
       if (tokenType === 'DOV') {
         await supabase
@@ -644,8 +650,19 @@ function App() {
               gap: '0.5rem'
             }}>
               <span style={{ fontWeight: '500' }}>
-  {profile?.username} {isAdmin && '🕊️'}
-</span>
+                {profile?.username} {isAdmin && '👑'}
+              </span>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1rem',
+                  cursor: 'pointer'
+                }}
+              >
+                ⚙️
+              </button>
             </div>
 
             {showSettings && (
