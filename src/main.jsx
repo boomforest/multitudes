@@ -641,7 +641,7 @@ function App() {
               gap: '0.5rem'
             }}>
               <span style={{ fontWeight: '500' }}>
-                {profile?.username} {isAdmin && '👑'}
+                {profile?.username} {isAdmin && '🕊️'}
               </span>
               <button
                 onClick={() => setShowSettings(!showSettings)}
