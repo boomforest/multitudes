@@ -63,18 +63,23 @@ function App() {
         options: {
           data: {
             username: formData.username
-          }
+          },
+          emailRedirectTo: 'https://grail3.netlify.app'
         }
       });
 
       if (error) {
         setMessage('Registration failed: ' + error.message);
+        console.error('Supabase error:', error);
+      } else if (data.user && !data.user.email_confirmed_at) {
+        setMessage('📧 Please check your email and click the confirmation link!');
       } else {
         setMessage('✅ Registration successful!');
         setUser(data.user);
       }
     } catch (err) {
-      setMessage('❌ Registration error');
+      setMessage('❌ Registration error: ' + err.message);
+      console.error('Registration error:', err);
     } finally {
       setLoading(false);
     }
