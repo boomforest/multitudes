@@ -664,9 +664,18 @@ function App() {
                 background: 'white',
                 borderRadius: '15px',
                 boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
-                padding: '0.5rem',
-                zIndex: 1000
+                padding: '1rem',
+                zIndex: 1000,
+                minWidth: '280px'
               }}>
+                {/* MetaMask Wallet Component in Settings */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <MetaMaskWallet 
+                    onWalletConnect={handleWalletConnect}
+                    currentUser={user}
+                  />
+                </div>
+                
                 <button
                   onClick={handleLogout}
                   style={{
@@ -686,12 +695,6 @@ function App() {
             )}
           </div>
 
-          {/* NEW: MetaMask Wallet Component */}
-          <MetaMaskWallet 
-            onWalletConnect={handleWalletConnect}
-            currentUser={user}
-          />
-
           {/* Show wallet address in profile if connected */}
           {profile?.wallet_address && (
             <div style={{
@@ -702,7 +705,7 @@ function App() {
               fontSize: '0.9rem',
               color: '#8b4513'
             }}>
-              Wallet: {formatWalletAddress(profile.wallet_address)}
+              🔗 Wallet: {formatWalletAddress(profile.wallet_address)}
             </div>
           )}
 
