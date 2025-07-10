@@ -223,51 +223,93 @@ function App() {
   }
 
   const handleAdminTransfer = async (tokenType) => {
-    if (!supabase || !profile) {
-      setMessage('Please wait for connection...')
-      return
-    }
-
-    const recipient = transferData.recipient.trim().toUpperCase()
-    const amount = parseFloat(transferData.amount)
-
-    if (!recipient || !amount) {
-      setMessage('Please fill in recipient and amount')
-      return
-    }
-
-    try {
-      setIsTransferring(true)
-
-      const { data, error } = await supabase.rpc('admin_transfer_tokens', {
-        recipient_username: recipient,
-        token_type: tokenType,
-        amount: amount
-      })
-
-      if (error) {
-        setMessage('Transfer failed: ' + error.message)
-        return
-      }
-
-      const result = typeof data === 'string' ? JSON.parse(data) : data
-      
-      if (result.success) {
-        setMessage(`Sent ${amount} ${tokenType} to ${recipient}!`)
-        setTransferData({ recipient: '', amount: '' })
-        setShowSendForm(null)
-        
-        await ensureProfileExists(user)
-        await loadAllProfiles()
-      } else {
-        setMessage(result.error || 'Transfer failed')
-      }
-    } catch (err) {
-      setMessage('Transfer failed: ' + err.message)
-    } finally {
-      setIsTransferring(false)
-    }
+  console.log('=== ADMIN TRANSFER DEBUG ===')
+  console.log('Token type:', tokenType)
+  console.log('User profile:', profile)
+  
+  if (!supabase || !profile) {
+    setMessage('Please wait for connection...')
+    return
   }
+
+  const recipient = transferData.recipient.trim().toUpperCase()
+  const amount = parseFloat(transferData.amount)
+
+  console.log('Recipient:', recipient)
+  console.log('Amount:', amount)
+  console.log('All profiles:', allProfiles)
+
+  if (!recipient || !amount) {
+    setMessage('Please fill in recipient and amount')
+    return
+  }
+
+  // Find recipient
+  const recipientProfile = allProfiles.find(p => p.username === recipient)
+  console.log('Recipient profile found:', recipientProfile)
+  
+  if (!recipientProfile) {
+    setMessage('Recipient not found')
+    return
+  }
+
+  if (recipientProfile.id === user.id) {
+    setMessage('Cannot send to yourself')
+    return
+  }
+
+  const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
+  console.log('Sender current balance:', currentBalance)
+  
+  if (currentBalance < amount) {
+    setMessage('Insufficient tokens')
+    return
+  }
+
+  try {
+    setIsTransferring(true)
+    console.log('Starting transfer...')
+
+    // Simple direct updates
+    if (tokenType === 'DOV') {
+      console.log('Updating DOV balances')
+      console.log('Sender new balance:', profile.dov_balance - amount)
+      console.log('Recipient current balance:', recipientProfile.dov_balance)
+      console.log('Recipient new balance:', recipientProfile.dov_balance + amount)
+      
+      // Update sender
+      const senderResult = await supabase
+        .from('profiles')
+        .update({ dov_balance: profile.dov_balance - amount })
+        .eq('id', user.id)
+      
+      console.log('Sender update result:', senderResult)
+
+      // Update recipient
+      const recipientResult = await supabase
+        .from('profiles')
+        .update({ dov_balance: recipientProfile.dov_balance + amount })
+        .eq('id', recipientProfile.id)
+        
+      console.log('Recipient update result:', recipientResult)
+    } else {
+      // DJR logic here...
+    }
+
+    console.log('Transfer completed')
+    setMessage(`Sent ${amount} ${tokenType} to ${recipient}!`)
+    setTransferData({ recipient: '', amount: '' })
+    setShowSendForm(null)
+    
+    await ensureProfileExists(user)
+    await loadAllProfiles()
+  } catch (err) {
+    console.error('Transfer error:', err)
+    setMessage('Transfer failed: ' + err.message)
+  } finally {
+    setIsTransferring(false)
+  }
+}
 
   const handleRelease = async (tokenType) => {
     if (!supabase || !profile) {
