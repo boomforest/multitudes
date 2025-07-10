@@ -98,6 +98,40 @@ function App() {
     }
   }
 
+  // NEW FUNCTION: Handle wallet connection and save to database
+  const handleWalletConnect = async (walletAddress) => {
+    if (!supabase || !user) {
+      console.log('No supabase client or user available')
+      return
+    }
+
+    try {
+      // Update the profile with the wallet address
+      const { error } = await supabase
+        .from('profiles')
+        .update({ wallet_address: walletAddress })
+        .eq('id', user.id)
+
+      if (error) {
+        console.error('Error saving wallet address:', error)
+        setMessage('Failed to save wallet address: ' + error.message)
+        return
+      }
+
+      // Refresh the profile to show the updated wallet address
+      await ensureProfileExists(user)
+      
+      if (walletAddress) {
+        setMessage('Wallet connected successfully! 🎉')
+      } else {
+        setMessage('Wallet disconnected')
+      }
+    } catch (error) {
+      console.error('Error handling wallet connection:', error)
+      setMessage('Error connecting wallet: ' + error.message)
+    }
+  }
+
   const loadAllProfiles = async (client = supabase) => {
     try {
       const { data, error } = await client
@@ -342,6 +376,11 @@ function App() {
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat().format(num || 0)
+  }
+
+  const formatWalletAddress = (address) => {
+    if (!address) return 'No wallet connected'
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
   const isAdmin = profile?.username === 'JPR333'
@@ -591,7 +630,7 @@ function App() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '3rem'
+            marginBottom: '2rem'
           }}>
             <div style={{
               background: 'rgba(255, 255, 255, 0.9)',
@@ -647,13 +686,33 @@ function App() {
             )}
           </div>
 
+          {/* NEW: MetaMask Wallet Component */}
+          <MetaMaskWallet 
+            onWalletConnect={handleWalletConnect}
+            currentUser={user}
+          />
+
+          {/* Show wallet address in profile if connected */}
+          {profile?.wallet_address && (
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: '20px',
+              padding: '0.75rem 1rem',
+              marginBottom: '1rem',
+              fontSize: '0.9rem',
+              color: '#8b4513'
+            }}>
+              Wallet: {formatWalletAddress(profile.wallet_address)}
+            </div>
+          )}
+
           {message && (
             <div style={{
               padding: '1rem',
               marginBottom: '2rem',
-              backgroundColor: message.includes('successful') || message.includes('Sent') || message.includes('Released') ? '#d4edda' : 
+              backgroundColor: message.includes('successful') || message.includes('Sent') || message.includes('Released') || message.includes('connected') ? '#d4edda' : 
                              message.includes('failed') ? '#f8d7da' : '#fff3cd',
-              color: message.includes('successful') || message.includes('Sent') || message.includes('Released') ? '#155724' : 
+              color: message.includes('successful') || message.includes('Sent') || message.includes('Released') || message.includes('connected') ? '#155724' : 
                      message.includes('failed') ? '#721c24' : '#856404',
               borderRadius: '15px',
               fontSize: '0.9rem'
