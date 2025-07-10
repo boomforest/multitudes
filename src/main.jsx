@@ -283,17 +283,30 @@ function App() {
       // Manual transfer using direct updates
       const senderField = tokenType === 'DOV' ? 'dov_balance' : 'djr_balance';
       
-      // Update sender balance
-      const { error: senderError } = await supabase
-        .from('profiles')
-        .update({ 
-          [senderField]: tokenType === 'DOV' 
-            ? profile.dov_balance - amount 
-            : profile.djr_balance - amount 
-        })
-        .eq('id', user.id);
+     // Update recipient balance with debugging
+console.log('Recipient profile:', recipientProfile);
+console.log('Updating recipient with amount:', amount);
+console.log('Current recipient balance:', tokenType === 'DOV' ? recipientProfile.dov_balance : recipientProfile.djr_balance);
 
-      if (senderError) throw senderError;
+const newRecipientBalance = tokenType === 'DOV'
+  ? recipientProfile.dov_balance + amount
+  : recipientProfile.djr_balance + amount;
+
+console.log('New recipient balance will be:', newRecipientBalance);
+
+const { error: recipientError } = await supabase
+  .from('profiles')
+  .update({ 
+    [senderField]: newRecipientBalance
+  })
+  .eq('id', recipientProfile.id);
+
+if (recipientError) {
+  console.error('Recipient update error:', recipientError);
+  throw recipientError;
+}
+
+console.log('Recipient balance updated successfully');
 
       // Update recipient balance
       const { error: recipientError } = await supabase
