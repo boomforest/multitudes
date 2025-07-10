@@ -1,4 +1,4 @@
-// MetaMask Integration Component
+// MetaMaskWallet.jsx - Create this file in your src folder
 import React, { useState, useEffect } from 'react';
 
 const MetaMaskWallet = ({ onWalletConnect, currentUser }) => {
@@ -99,24 +99,38 @@ const MetaMaskWallet = ({ onWalletConnect, currentUser }) => {
   // If MetaMask is not installed
   if (!isMetaMaskInstalled) {
     return (
-      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-        <div className="flex items-center">
-          <div className="text-orange-600 mr-2">⚠️</div>
-          <div>
-            <h3 className="font-semibold text-orange-800">MetaMask Required</h3>
-            <p className="text-orange-700 text-sm mt-1">
-              Please install MetaMask to connect your wallet
-            </p>
-            <a
-              href="https://metamask.io/download/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-2 bg-orange-600 text-white px-4 py-2 rounded-md text-sm hover:bg-orange-700 transition-colors"
-            >
-              Install MetaMask
-            </a>
-          </div>
-        </div>
+      <div style={{
+        background: 'rgba(255, 193, 7, 0.1)',
+        border: '2px solid #ffc107',
+        borderRadius: '20px',
+        padding: '1rem',
+        marginBottom: '1rem',
+        textAlign: 'center'
+      }}>
+        <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>⚠️</div>
+        <h3 style={{ margin: '0 0 0.5rem 0', color: '#856404', fontSize: '1.1rem' }}>
+          MetaMask Required
+        </h3>
+        <p style={{ margin: '0 0 1rem 0', color: '#856404', fontSize: '0.9rem' }}>
+          Install MetaMask to connect your wallet
+        </p>
+        <a
+          href="https://metamask.io/download/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-block',
+            background: '#ffc107',
+            color: '#212529',
+            textDecoration: 'none',
+            padding: '0.5rem 1rem',
+            borderRadius: '15px',
+            fontSize: '0.9rem',
+            fontWeight: '500'
+          }}
+        >
+          Install MetaMask
+        </a>
       </div>
     );
   }
@@ -124,20 +138,36 @@ const MetaMaskWallet = ({ onWalletConnect, currentUser }) => {
   // If wallet is connected
   if (isConnected && walletAddress) {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <div className="text-green-600 mr-2">✅</div>
+      <div style={{
+        background: 'rgba(40, 167, 69, 0.1)',
+        border: '2px solid #28a745',
+        borderRadius: '20px',
+        padding: '1rem',
+        marginBottom: '1rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>🔗</div>
             <div>
-              <h3 className="font-semibold text-green-800">Wallet Connected</h3>
-              <p className="text-green-700 text-sm mt-1">
+              <h3 style={{ margin: '0', color: '#155724', fontSize: '1rem' }}>
+                Wallet Connected
+              </h3>
+              <p style={{ margin: '0', color: '#155724', fontSize: '0.8rem' }}>
                 {formatAddress(walletAddress)}
               </p>
             </div>
           </div>
           <button
             onClick={disconnectWallet}
-            className="bg-red-100 text-red-600 px-3 py-1 rounded-md text-sm hover:bg-red-200 transition-colors"
+            style={{
+              background: 'rgba(220, 53, 69, 0.1)',
+              color: '#dc3545',
+              border: '1px solid #dc3545',
+              borderRadius: '10px',
+              padding: '0.25rem 0.5rem',
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
           >
             Disconnect
           </button>
@@ -148,27 +178,51 @@ const MetaMaskWallet = ({ onWalletConnect, currentUser }) => {
 
   // Connection interface
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <div className="text-blue-600 mr-2">🔗</div>
+    <div style={{
+      background: 'rgba(0, 123, 255, 0.1)',
+      border: '2px solid #007bff',
+      borderRadius: '20px',
+      padding: '1rem',
+      marginBottom: '1rem'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>🦊</div>
           <div>
-            <h3 className="font-semibold text-blue-800">Connect Wallet</h3>
-            <p className="text-blue-700 text-sm mt-1">
-              Connect your MetaMask wallet to GRAIL
+            <h3 style={{ margin: '0', color: '#004085', fontSize: '1rem' }}>
+              Connect Wallet
+            </h3>
+            <p style={{ margin: '0', color: '#004085', fontSize: '0.8rem' }}>
+              Connect MetaMask to GRAIL
             </p>
           </div>
         </div>
         <button
           onClick={connectWallet}
           disabled={isConnecting}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+          style={{
+            background: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '15px',
+            padding: '0.5rem 1rem',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            opacity: isConnecting ? 0.5 : 1
+          }}
         >
           {isConnecting ? 'Connecting...' : 'Connect'}
         </button>
       </div>
       {error && (
-        <div className="mt-3 text-red-600 text-sm bg-red-50 border border-red-200 rounded p-2">
+        <div style={{
+          marginTop: '0.5rem',
+          color: '#721c24',
+          fontSize: '0.8rem',
+          background: 'rgba(248, 215, 218, 0.5)',
+          padding: '0.5rem',
+          borderRadius: '10px'
+        }}>
           {error}
         </div>
       )}
