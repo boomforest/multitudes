@@ -7,6 +7,7 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [allProfiles, setAllProfiles] = useState([]);
   const [activeTab, setActiveTab] = useState('login');
+  const [showSendForm, setShowSendForm] = useState(null); // null, 'DOV', or 'DJR'
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -14,12 +15,12 @@ function App() {
   });
   const [transferData, setTransferData] = useState({
     recipient: '',
-    token: 'DOV',
     amount: ''
   });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Initialize Supabase
   useEffect(() => {
@@ -31,7 +32,7 @@ function App() {
           import.meta.env.VITE_SUPABASE_ANON_KEY
         );
         setSupabase(client);
-        setMessage('✅ Supabase connected!');
+        setMessage('');
 
         // Check if user is already logged in
         const { data: { session } } = await client.auth.getSession();
@@ -41,7 +42,7 @@ function App() {
           await loadAllProfiles(client);
         }
       } catch (error) {
-        setMessage('❌ Supabase connection failed');
+        setMessage('❌ Connection failed');
         console.error('Supabase error:', error);
       }
     };
@@ -59,7 +60,6 @@ function App() {
       
       if (error) {
         console.error('Profile error:', error);
-        setMessage('Profile not found');
       } else {
         setProfile(data);
       }
@@ -113,7 +113,7 @@ function App() {
       if (error) {
         setMessage('Registration failed: ' + error.message);
       } else {
-        setMessage('✅ Registration successful!');
+        setMessage('Registration successful!');
         setUser(data.user);
         setTimeout(() => {
           loadUserProfile(data.user.id);
@@ -121,7 +121,7 @@ function App() {
         }, 1000);
       }
     } catch (err) {
-      setMessage('❌ Registration error: ' + err.message);
+      setMessage('Registration error: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -148,13 +148,13 @@ function App() {
       if (error) {
         setMessage('Login failed: ' + error.message);
       } else {
-        setMessage('✅ Login successful!');
+        setMessage('Login successful!');
         setUser(data.user);
         await loadUserProfile(data.user.id);
         await loadAllProfiles();
       }
     } catch (err) {
-      setMessage('❌ Login error: ' + err.message);
+      setMessage('Login error: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -167,12 +167,14 @@ function App() {
     setUser(null);
     setProfile(null);
     setAllProfiles([]);
-    setMessage('Logged out');
+    setShowSettings(false);
+    setShowSendForm(null);
+    setMessage('');
     setFormData({ email: '', password: '', username: '' });
-    setTransferData({ recipient: '', token: 'DOV', amount: '' });
+    setTransferData({ recipient: '', amount: '' });
   };
 
-  const handleTransfer = async () => {
+  const handleTransfer = async (tokenType) => {
     if (!supabase || !profile) {
       setMessage('Please wait for connection...');
       return;
@@ -199,326 +201,347 @@ function App() {
     }
 
     if (recipientProfile.id === user.id) {
-      setMessage('Cannot send tokens to yourself');
+      setMessage('Cannot send to yourself');
       return;
     }
 
     // Check if sender has enough tokens
-    const currentBalance = transferData.token === 'DOV' ? profile.dov_balance : profile.djr_balance;
+    const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance;
     if (currentBalance < amount) {
-      setMessage(`Insufficient ${transferData.token} tokens`);
+      setMessage(`Insufficient ${tokenType} tokens`);
       return;
     }
 
     try {
       setIsTransferring(true);
 
-      // Perform the transfer using database transactions
-      const { data, error } = await supabase.rpc('transfer_tokens_simple', {
-        sender_id: user.id,
-        recipient_id: recipientProfile.id,
-        token_type: transferData.token,
-        amount: amount
-      });
+      // Manual transfer using direct updates
+      const senderField = tokenType === 'DOV' ? 'dov_balance' : 'djr_balance';
+      
+      // Update sender balance
+      const { error: senderError } = await supabase
+        .from('profiles')
+        .update({ 
+          [senderField]: tokenType === 'DOV' 
+            ? profile.dov_balance - amount 
+            : profile.djr_balance - amount 
+        })
+        .eq('id', user.id);
 
-      if (error) {
-        // If the RPC function doesn't exist, do manual transfer
-        console.log('RPC failed, doing manual transfer');
-        await manualTransfer(recipientProfile.id, amount);
-      } else {
-        setMessage(`✅ Sent ${amount} ${transferData.token} to ${recipient}!`);
-        setTransferData({ recipient: '', token: 'DOV', amount: '' });
-        
-        // Refresh balances
-        await loadUserProfile(user.id);
-        await loadAllProfiles();
-      }
+      if (senderError) throw senderError;
+
+      // Update recipient balance
+      const { error: recipientError } = await supabase
+        .from('profiles')
+        .update({ 
+          [senderField]: tokenType === 'DOV'
+            ? recipientProfile.dov_balance + amount
+            : recipientProfile.djr_balance + amount
+        })
+        .eq('id', recipientProfile.id);
+
+      if (recipientError) throw recipientError;
+
+      setMessage(`Sent ${amount} ${tokenType} to ${recipient}!`);
+      setTransferData({ recipient: '', amount: '' });
+      setShowSendForm(null);
+      
+      // Refresh balances
+      await loadUserProfile(user.id);
+      await loadAllProfiles();
     } catch (err) {
-      setMessage('❌ Transfer failed: ' + err.message);
-      console.error('Transfer error:', err);
+      setMessage('Transfer failed: ' + err.message);
     } finally {
       setIsTransferring(false);
     }
   };
 
-  const manualTransfer = async (recipientId, amount) => {
-    // Manual transfer using direct updates
-    const senderField = transferData.token === 'DOV' ? 'dov_balance' : 'djr_balance';
-    
-    // Update sender balance
-    const { error: senderError } = await supabase
-      .from('profiles')
-      .update({ 
-        [senderField]: transferData.token === 'DOV' 
-          ? profile.dov_balance - amount 
-          : profile.djr_balance - amount 
-      })
-      .eq('id', user.id);
-
-    if (senderError) throw senderError;
-
-    // Update recipient balance
-    const recipientProfile = allProfiles.find(p => p.id === recipientId);
-    const { error: recipientError } = await supabase
-      .from('profiles')
-      .update({ 
-        [senderField]: transferData.token === 'DOV'
-          ? recipientProfile.dov_balance + amount
-          : recipientProfile.djr_balance + amount
-      })
-      .eq('id', recipientId);
-
-    if (recipientError) throw recipientError;
-
-    setMessage(`✅ Sent ${amount} ${transferData.token} to ${transferData.recipient}!`);
-    setTransferData({ recipient: '', token: 'DOV', amount: '' });
-    
-    // Refresh balances
-    await loadUserProfile(user.id);
-    await loadAllProfiles();
-  };
-
-  // Format numbers with commas
+  // Format numbers
   const formatNumber = (num) => {
     return new Intl.NumberFormat().format(num || 0);
   };
+
+  if (user && showSendForm) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#f5f5dc',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '2rem 1rem'
+      }}>
+        <div style={{
+          maxWidth: '400px',
+          margin: '0 auto',
+          textAlign: 'center'
+        }}>
+          {/* Back Button */}
+          <button
+            onClick={() => setShowSendForm(null)}
+            style={{
+              position: 'absolute',
+              top: '2rem',
+              left: '2rem',
+              background: 'rgba(255, 255, 255, 0.9)',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '0.5rem 1rem',
+              fontSize: '1rem',
+              cursor: 'pointer'
+            }}
+          >
+            ← Back
+          </button>
+
+          <h1 style={{
+            fontSize: '3rem',
+            color: '#d2691e',
+            marginBottom: '2rem',
+            fontWeight: 'normal'
+          }}>
+            Send {showSendForm}
+          </h1>
+
+          {message && (
+            <div style={{
+              padding: '1rem',
+              marginBottom: '2rem',
+              backgroundColor: message.includes('Sent') ? '#d4edda' : '#f8d7da',
+              color: message.includes('Sent') ? '#155724' : '#721c24',
+              borderRadius: '20px'
+            }}>
+              {message}
+            </div>
+          )}
+
+          <div style={{ marginBottom: '2rem' }}>
+            <input
+              type="text"
+              value={transferData.recipient}
+              onChange={(e) => setTransferData({ ...transferData, recipient: e.target.value.toUpperCase() })}
+              placeholder="Recipient Username (ABC123)"
+              maxLength={6}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                fontSize: '1.2rem',
+                border: '2px solid #d2691e',
+                borderRadius: '25px',
+                textAlign: 'center',
+                marginBottom: '1rem',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+
+            <input
+              type="number"
+              value={transferData.amount}
+              onChange={(e) => setTransferData({ ...transferData, amount: e.target.value })}
+              placeholder="Amount"
+              min="0"
+              step="0.01"
+              style={{
+                width: '100%',
+                padding: '1rem',
+                fontSize: '1.2rem',
+                border: '2px solid #d2691e',
+                borderRadius: '25px',
+                textAlign: 'center',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          <button
+            onClick={() => handleTransfer(showSendForm)}
+            disabled={isTransferring}
+            style={{
+              background: 'linear-gradient(45deg, #d2691e, #cd853f)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '25px',
+              padding: '1rem 3rem',
+              fontSize: '1.2rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              opacity: isTransferring ? 0.5 : 1,
+              boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
+            }}
+          >
+            {isTransferring ? 'Sending...' : 'Send ✈️'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (user) {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #dbeafe 0%, #fdf4ff 100%)',
-        padding: '1rem',
-        fontFamily: 'system-ui, -apple-system, sans-serif'
+        backgroundColor: '#f5f5dc',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '2rem 1rem',
+        position: 'relative'
       }}>
-        <div style={{ maxWidth: '72rem', margin: '0 auto' }}>
+        <div style={{
+          maxWidth: '400px',
+          margin: '0 auto',
+          textAlign: 'center'
+        }}>
           {/* Header */}
           <div style={{
-            background: 'white',
-            borderRadius: '0.5rem',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-            padding: '1.5rem',
-            marginBottom: '1.5rem'
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '3rem'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>🛡️ Token Exchange</h1>
-                <p style={{ color: '#6b7280', margin: '0.25rem 0 0 0' }}>Welcome, {profile?.username}!</p>
-              </div>
-              <button 
-                onClick={handleLogout}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: '20px',
+              padding: '0.5rem 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <span style={{ fontWeight: '500' }}>{profile?.username}</span>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
                 style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#ef4444',
-                  color: 'white',
+                  background: 'none',
                   border: 'none',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  fontWeight: '500'
+                  fontSize: '1rem',
+                  cursor: 'pointer'
                 }}
               >
-                🚪 Logout
+                ⚙️
               </button>
             </div>
-          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            {/* Token Balances */}
-            <div style={{
-              background: 'white',
-              borderRadius: '0.5rem',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              padding: '1.5rem'
-            }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>Your Tokens</h2>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{
-                  background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
-                  padding: '1rem',
-                  borderRadius: '0.5rem'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <h3 style={{ fontWeight: '600', color: '#1e40af', margin: 0 }}>Palomas (DOV)</h3>
-                      <p style={{ fontSize: '0.875rem', color: '#3730a3', margin: '0.25rem 0 0 0' }}>Doves</p>
-                    </div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e40af' }}>
-                      {formatNumber(profile?.dov_balance)}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{
-                  background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)',
-                  padding: '1rem',
-                  borderRadius: '0.5rem'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <h3 style={{ fontWeight: '600', color: '#7c3aed', margin: 0 }}>Palomitas (DJR)</h3>
-                      <p style={{ fontSize: '0.875rem', color: '#6b21a8', margin: '0.25rem 0 0 0' }}>Little Doves</p>
-                    </div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#7c3aed' }}>
-                      {formatNumber(profile?.djr_balance)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Send Tokens */}
-            <div style={{
-              background: 'white',
-              borderRadius: '0.5rem',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              padding: '1.5rem'
-            }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>Send Tokens</h2>
-              
-              {message && (
-                <div style={{
-                  padding: '0.75rem',
-                  borderRadius: '0.375rem',
-                  marginBottom: '1rem',
-                  backgroundColor: message.includes('✅') ? '#d1fae5' : message.includes('❌') ? '#fee2e2' : '#fef3c7',
-                  color: message.includes('✅') ? '#065f46' : message.includes('❌') ? '#991b1b' : '#92400e'
-                }}>
-                  {message}
-                </div>
-              )}
-
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-                  Recipient Username
-                </label>
-                <input
-                  type="text"
-                  value={transferData.recipient}
-                  onChange={(e) => setTransferData({ ...transferData, recipient: e.target.value.toUpperCase() })}
-                  placeholder="ABC123"
-                  maxLength={6}
+            {/* Settings Menu */}
+            {showSettings && (
+              <div style={{
+                position: 'absolute',
+                top: '4rem',
+                left: '1rem',
+                background: 'white',
+                borderRadius: '15px',
+                boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+                padding: '0.5rem',
+                zIndex: 1000
+              }}>
+                <button
+                  onClick={handleLogout}
                   style={{
                     width: '100%',
-                    padding: '0.5rem 0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.375rem',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-                  Token Type
-                </label>
-                <select
-                  value={transferData.token}
-                  onChange={(e) => setTransferData({ ...transferData, token: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem 0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.375rem',
-                    boxSizing: 'border-box'
+                    padding: '0.75rem 1rem',
+                    backgroundColor: 'transparent',
+                    color: '#ef4444',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
                   }}
                 >
-                  <option value="DOV">DOV (Palomas)</option>
-                  <option value="DJR">DJR (Palomitas)</option>
-                </select>
+                  🚪 Logout
+                </button>
               </div>
+            )}
+          </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-                  Amount
-                </label>
-                <input
-                  type="number"
-                  value={transferData.amount}
-                  onChange={(e) => setTransferData({ ...transferData, amount: e.target.value })}
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem 0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.375rem',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <button
-                onClick={handleTransfer}
-                disabled={isTransferring}
-                style={{
-                  width: '100%',
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  opacity: isTransferring ? 0.5 : 1
-                }}
-              >
-                {isTransferring ? 'Sending...' : '📤 Send Tokens'}
-              </button>
-            </div>
-
-            {/* Users List */}
+          {/* Palomas Section */}
+          <div style={{ marginBottom: '4rem' }}>
             <div style={{
-              background: 'white',
-              borderRadius: '0.5rem',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              padding: '1.5rem'
+              fontSize: '3rem',
+              marginBottom: '1rem'
             }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>Other Users</h2>
-              
-              <div style={{ maxHeight: '20rem', overflowY: 'auto' }}>
-                {allProfiles.filter(p => p.id !== user?.id).length === 0 ? (
-                  <p style={{ color: '#6b7280', textAlign: 'center' }}>No other users yet</p>
-                ) : (
-                  allProfiles.filter(p => p.id !== user?.id).map(userProfile => (
-                    <div
-                      key={userProfile.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.75rem',
-                        backgroundColor: '#f9fafb',
-                        borderRadius: '0.375rem',
-                        marginBottom: '0.5rem'
-                      }}
-                    >
-                      <div>
-                        <p style={{ fontWeight: '500', margin: 0 }}>{userProfile.username}</p>
-                        <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.125rem 0 0 0' }}>
-                          DOV: {formatNumber(userProfile.dov_balance)} | DJR: {formatNumber(userProfile.djr_balance)}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setTransferData({ ...transferData, recipient: userProfile.username })}
-                        style={{
-                          padding: '0.25rem 0.75rem',
-                          backgroundColor: '#3b82f6',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '0.375rem',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem'
-                        }}
-                      >
-                        Send
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
+              🕊️
             </div>
+            <h2 style={{
+              fontSize: '3.5rem',
+              color: '#d2691e',
+              margin: '0 0 1rem 0',
+              fontWeight: 'normal'
+            }}>
+              Palomas
+            </h2>
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: '25px',
+              padding: '0.75rem 1.5rem',
+              display: 'inline-block',
+              fontSize: '1.5rem',
+              fontWeight: '500',
+              color: '#8b4513',
+              marginBottom: '2rem'
+            }}>
+              {formatNumber(profile?.dov_balance)}
+            </div>
+            <br />
+            <button
+              onClick={() => setShowSendForm('DOV')}
+              style={{
+                background: 'linear-gradient(45deg, #d2691e, #cd853f)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '25px',
+                padding: '1rem 3rem',
+                fontSize: '1.2rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
+              }}
+            >
+              Send ✈️
+            </button>
+          </div>
+
+          {/* Palomitas Section */}
+          <div>
+            <h2 style={{
+              fontSize: '3.5rem',
+              color: '#8b4513',
+              margin: '0 0 1rem 0',
+              fontWeight: 'normal'
+            }}>
+              Palomitas
+            </h2>
+            <div style={{
+              fontSize: '2rem',
+              marginBottom: '1rem'
+            }}>
+              🕊️
+            </div>
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: '25px',
+              padding: '0.75rem 1.5rem',
+              display: 'inline-block',
+              fontSize: '1.5rem',
+              fontWeight: '500',
+              color: '#8b4513',
+              marginBottom: '2rem'
+            }}>
+              {formatNumber(profile?.djr_balance)}
+            </div>
+            <br />
+            <button
+              onClick={() => setShowSendForm('DJR')}
+              style={{
+                background: 'linear-gradient(45deg, #d2691e, #cd853f)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '25px',
+                padding: '1rem 3rem',
+                fontSize: '1.2rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
+              }}
+            >
+              Send ✈️
+            </button>
           </div>
         </div>
       </div>
@@ -528,38 +551,42 @@ function App() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #dbeafe 0%, #fdf4ff 100%)',
-      padding: '1rem',
+      backgroundColor: '#f5f5dc',
       fontFamily: 'system-ui, -apple-system, sans-serif',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      padding: '1rem'
     }}>
       <div style={{
-        background: 'white',
-        borderRadius: '0.5rem',
-        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-        padding: '1.5rem',
+        background: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: '25px',
+        padding: '2rem',
         width: '100%',
-        maxWidth: '28rem'
+        maxWidth: '400px',
+        textAlign: 'center',
+        boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)'
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1>🛡️ Token Exchange</h1>
-          <p style={{ color: '#6b7280' }}>Secure DOV & DJR token trading</p>
-        </div>
+        <h1 style={{
+          fontSize: '2.5rem',
+          fontWeight: 'bold',
+          margin: '0 0 0.5rem 0',
+          color: '#d2691e'
+        }}>
+          GRAIL
+        </h1>
+        <p style={{ color: '#8b4513', margin: '0 0 2rem 0' }}>Token Exchange</p>
 
         {/* Login/Register Tabs */}
-        <div style={{ display: 'flex', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', marginBottom: '1.5rem', borderRadius: '20px', overflow: 'hidden' }}>
           <button
             onClick={() => setActiveTab('login')}
             style={{
               flex: 1,
-              padding: '0.5rem 1rem',
-              backgroundColor: activeTab === 'login' ? '#3b82f6' : '#e5e7eb',
-              color: activeTab === 'login' ? 'white' : '#374151',
+              padding: '1rem',
+              backgroundColor: activeTab === 'login' ? '#d2691e' : '#f0f0f0',
+              color: activeTab === 'login' ? 'white' : '#8b4513',
               border: 'none',
-              borderTopLeftRadius: '0.375rem',
-              borderBottomLeftRadius: '0.375rem',
               cursor: 'pointer',
               fontWeight: '500'
             }}
@@ -570,12 +597,10 @@ function App() {
             onClick={() => setActiveTab('register')}
             style={{
               flex: 1,
-              padding: '0.5rem 1rem',
-              backgroundColor: activeTab === 'register' ? '#3b82f6' : '#e5e7eb',
-              color: activeTab === 'register' ? 'white' : '#374151',
+              padding: '1rem',
+              backgroundColor: activeTab === 'register' ? '#d2691e' : '#f0f0f0',
+              color: activeTab === 'register' ? 'white' : '#8b4513',
               border: 'none',
-              borderTopRightRadius: '0.375rem',
-              borderBottomRightRadius: '0.375rem',
               cursor: 'pointer',
               fontWeight: '500'
             }}
@@ -586,11 +611,12 @@ function App() {
 
         {message && (
           <div style={{
-            padding: '0.75rem',
-            borderRadius: '0.375rem',
+            padding: '1rem',
+            borderRadius: '15px',
             marginBottom: '1rem',
-            backgroundColor: message.includes('✅') ? '#d1fae5' : message.includes('❌') ? '#fee2e2' : '#fef3c7',
-            color: message.includes('✅') ? '#065f46' : message.includes('❌') ? '#991b1b' : '#92400e'
+            backgroundColor: message.includes('successful') ? '#d4edda' : '#f8d7da',
+            color: message.includes('successful') ? '#155724' : '#721c24',
+            fontSize: '0.9rem'
           }}>
             {message}
           </div>
@@ -603,11 +629,13 @@ function App() {
           placeholder="Email"
           style={{
             width: '100%',
-            padding: '0.5rem 0.75rem',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.375rem',
+            padding: '1rem',
+            border: '2px solid #e0e0e0',
+            borderRadius: '15px',
             marginBottom: '1rem',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            fontSize: '1rem',
+            outline: 'none'
           }}
         />
 
@@ -618,11 +646,13 @@ function App() {
           placeholder="Password"
           style={{
             width: '100%',
-            padding: '0.5rem 0.75rem',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.375rem',
+            padding: '1rem',
+            border: '2px solid #e0e0e0',
+            borderRadius: '15px',
             marginBottom: '1rem',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            fontSize: '1rem',
+            outline: 'none'
           }}
         />
 
@@ -635,11 +665,13 @@ function App() {
             maxLength={6}
             style={{
               width: '100%',
-              padding: '0.5rem 0.75rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.375rem',
+              padding: '1rem',
+              border: '2px solid #e0e0e0',
+              borderRadius: '15px',
               marginBottom: '1rem',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              fontSize: '1rem',
+              outline: 'none'
             }}
           />
         )}
@@ -649,14 +681,16 @@ function App() {
           disabled={loading || !supabase}
           style={{
             width: '100%',
-            padding: '0.5rem 1rem',
-            backgroundColor: '#3b82f6',
+            padding: '1rem',
+            background: 'linear-gradient(45deg, #d2691e, #cd853f)',
             color: 'white',
             border: 'none',
-            borderRadius: '0.375rem',
+            borderRadius: '15px',
             cursor: 'pointer',
-            fontWeight: '500',
-            opacity: (loading || !supabase) ? 0.5 : 1
+            fontWeight: '600',
+            fontSize: '1rem',
+            opacity: (loading || !supabase) ? 0.5 : 1,
+            boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)'
           }}
         >
           {loading ? 'Loading...' : (activeTab === 'login' ? 'Login' : 'Register')}
