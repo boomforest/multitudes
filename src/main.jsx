@@ -475,7 +475,9 @@ function App() {
       }
 
       // Create notification for all releases (both DOV/Palomas and DJR/Palomitas)
+      console.log('About to create notification for release:', { amount, reason, tokenType })
       await createReleaseNotification(amount, reason, tokenType)
+      console.log('Finished creating notification')
 
       setMessage('Released ' + amount + ' ' + tokenType + '!')
       setReleaseData({ amount: '', reason: '' })
