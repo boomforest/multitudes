@@ -127,65 +127,72 @@ function App() {
     }
   }
 
-  // Load notifications for admin view
+  // Load notifications for admin view - simplified approach
   const loadNotifications = async (client = supabase) => {
+    if (!client) {
+      console.log('No supabase client available')
+      return
+    }
+
     try {
-      const { data, error } = await client
+      console.log('Attempting to load notifications...')
+      
+      // Simple query without any joins
+      const response = await client
         .from('release_notifications')
-        .select(`
-          *,
-          profiles!release_notifications_user_id_fkey(username)
-        `)
+        .select('id, user_id, username, token_type, amount, reason, created_at')
         .order('created_at', { ascending: false })
         .limit(50)
       
-      if (error) {
-        console.error('Error loading notifications:', error)
-        // If table doesn't exist, just set empty notifications
-        if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
-          setNotifications([])
-          return
-        }
-        throw error
+      console.log('Supabase response:', response)
+      
+      if (response.error) {
+        console.error('Supabase error:', response.error)
+        setNotifications([])
+        return
       }
-      setNotifications(data || [])
+      
+      console.log('Successfully loaded notifications:', response.data)
+      setNotifications(response.data || [])
+      
     } catch (error) {
-      console.error('Error loading notifications:', error)
+      console.error('Catch block - Error loading notifications:', error)
       setNotifications([])
     }
   }
 
-  // Create notification when releasing doves
+  // Create notification when releasing tokens
   const createReleaseNotification = async (amount, reason, tokenType) => {
-    if (!supabase || !profile) return
+    if (!supabase || !profile) {
+      console.log('Cannot create notification - missing supabase or profile')
+      return
+    }
 
     try {
-      console.log('Creating notification:', { amount, reason, tokenType, username: profile.username })
+      const notificationData = {
+        user_id: user.id,
+        username: profile.username,
+        token_type: tokenType,
+        amount: parseFloat(amount),
+        reason: reason || 'Token release'
+      }
       
-      const { data, error } = await supabase
+      console.log('Creating notification with data:', notificationData)
+      
+      const response = await supabase
         .from('release_notifications')
-        .insert([{
-          user_id: user.id,
-          username: profile.username,
-          token_type: tokenType,
-          amount: amount,
-          reason: reason || 'Token release',
-          created_at: new Date().toISOString()
-        }])
+        .insert([notificationData])
         .select()
 
-      if (error) {
-        console.error('Error creating notification:', error)
-        // If table doesn't exist, show a message to admin
-        if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
-          console.warn('Notifications table does not exist. Please create it in your Supabase database.')
-          return
-        }
+      console.log('Create notification response:', response)
+
+      if (response.error) {
+        console.error('Error creating notification:', response.error)
       } else {
-        console.log('Notification created successfully:', data)
+        console.log('Notification created successfully:', response.data)
       }
     } catch (error) {
-      console.error('Error creating notification:', error)
+      console.error('Catch block - Error creating notification:', error)
     }
   }
 
@@ -603,7 +610,7 @@ function App() {
                       color: '#d2691e',
                       fontSize: '1.1rem'
                     }}>
-                      🕊️ {notification.profiles?.username || notification.username}
+                      🕊️ {notification.username}
                     </div>
                     <div style={{
                       fontSize: '0.8rem',
