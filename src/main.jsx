@@ -10,7 +10,9 @@ const formatTimeAgo = (dateString) => {
     if (diffMins < 60) return `${diffMins}m ago`
     if (diffHours < 24) return `${diffHours}h ago`
     return `${diffDays}d ago`
-  }import React, { useState, useEffect } from 'react'
+  }
+
+import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import WalletInput from './WalletInput';
 
