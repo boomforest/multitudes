@@ -49,20 +49,24 @@ function App() {
           await loadAllProfiles(client)
           await loadNotifications(client)
           
-          // Set up real-time subscription for notifications
-          const notificationSubscription = client
-            .channel('release_notifications')
-            .on('postgres_changes', 
-              { event: 'INSERT', schema: 'public', table: 'release_notifications' },
-              (payload) => {
-                console.log('New notification received:', payload)
-                loadNotifications(client)
-              }
-            )
-            .subscribe()
+          // Set up real-time subscription for notifications (only if table exists)
+          try {
+            const notificationSubscription = client
+              .channel('release_notifications')
+              .on('postgres_changes', 
+                { event: 'INSERT', schema: 'public', table: 'release_notifications' },
+                (payload) => {
+                  console.log('New notification received:', payload)
+                  loadNotifications(client)
+                }
+              )
+              .subscribe()
 
-          // Store subscription for cleanup
-          client.notificationSubscription = notificationSubscription
+            // Store subscription for cleanup
+            client.notificationSubscription = notificationSubscription
+          } catch (subscriptionError) {
+            console.warn('Could not set up real-time notifications:', subscriptionError)
+          }
         }
       } catch (error) {
         setMessage('Connection failed')
@@ -135,10 +139,19 @@ function App() {
         .order('created_at', { ascending: false })
         .limit(50)
       
-      if (error) throw error
+      if (error) {
+        console.error('Error loading notifications:', error)
+        // If table doesn't exist, just set empty notifications
+        if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+          setNotifications([])
+          return
+        }
+        throw error
+      }
       setNotifications(data || [])
     } catch (error) {
       console.error('Error loading notifications:', error)
+      setNotifications([])
     }
   }
 
@@ -163,6 +176,11 @@ function App() {
 
       if (error) {
         console.error('Error creating notification:', error)
+        // If table doesn't exist, show a message to admin
+        if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+          console.warn('Notifications table does not exist. Please create it in your Supabase database.')
+          return
+        }
       } else {
         console.log('Notification created successfully:', data)
       }
