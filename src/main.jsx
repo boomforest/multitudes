@@ -7,9 +7,11 @@ function App() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [allProfiles, setAllProfiles] = useState([])
+  const [notifications, setNotifications] = useState([])
   const [activeTab, setActiveTab] = useState('login')
   const [showSendForm, setShowSendForm] = useState(null)
   const [showReleaseForm, setShowReleaseForm] = useState(null)
+  const [showNotifications, setShowNotifications] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -45,6 +47,7 @@ function App() {
           setUser(session.user)
           await ensureProfileExists(session.user, client)
           await loadAllProfiles(client)
+          await loadNotifications(client)
         }
       } catch (error) {
         setMessage('Connection failed')
@@ -95,6 +98,49 @@ function App() {
     } catch (error) {
       setMessage('Error creating profile: ' + error.message)
       return null
+    }
+  }
+
+  // Load notifications for admin view
+  const loadNotifications = async (client = supabase) => {
+    try {
+      const { data, error } = await client
+        .from('release_notifications')
+        .select(`
+          *,
+          profiles!release_notifications_user_id_fkey(username)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      
+      if (error) throw error
+      setNotifications(data || [])
+    } catch (error) {
+      console.error('Error loading notifications:', error)
+    }
+  }
+
+  // Create notification when releasing doves
+  const createReleaseNotification = async (amount, reason, tokenType) => {
+    if (!supabase || !profile) return
+
+    try {
+      const { error } = await supabase
+        .from('release_notifications')
+        .insert([{
+          user_id: user.id,
+          username: profile.username,
+          token_type: tokenType,
+          amount: amount,
+          reason: reason || 'Token release',
+          created_at: new Date().toISOString()
+        }])
+
+      if (error) {
+        console.error('Error creating notification:', error)
+      }
+    } catch (error) {
+      console.error('Error creating notification:', error)
     }
   }
 
@@ -192,6 +238,7 @@ function App() {
       if (profile) {
         setUser(authData.user)
         await loadAllProfiles()
+        await loadNotifications()
         setMessage('Registration successful!')
         setFormData({ email: '', password: '', username: '' })
       } else {
@@ -233,6 +280,7 @@ function App() {
       setUser(data.user)
       await ensureProfileExists(data.user)
       await loadAllProfiles()
+      await loadNotifications()
       setFormData({ email: '', password: '', username: '' })
     } catch (err) {
       setMessage('Login error: ' + err.message)
@@ -248,9 +296,11 @@ function App() {
     setUser(null)
     setProfile(null)
     setAllProfiles([])
+    setNotifications([])
     setShowSettings(false)
     setShowSendForm(null)
     setShowReleaseForm(null)
+    setShowNotifications(false)
     setMessage('')
     setFormData({ email: '', password: '', username: '' })
     setTransferData({ recipient: '', amount: '' })
@@ -367,12 +417,18 @@ function App() {
           .eq('id', user.id)
       }
 
+      // Create notification for the release (only for DOV/Palomas releases)
+      if (tokenType === 'DOV') {
+        await createReleaseNotification(amount, reason, tokenType)
+      }
+
       setMessage('Released ' + amount + ' ' + tokenType + '!')
       setReleaseData({ amount: '', reason: '' })
       setShowReleaseForm(null)
       
       await ensureProfileExists(user)
       await loadAllProfiles()
+      await loadNotifications() // Refresh notifications
     } catch (err) {
       setMessage('Release failed: ' + err.message)
     } finally {
@@ -389,7 +445,155 @@ function App() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
+  const formatTimeAgo = (dateString) => {
+    const now = new Date()
+    const then = new Date(dateString)
+    const diffMs = now - then
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    return `${diffDays}d ago`
+  }
+
   const isAdmin = profile?.username === 'JPR333'
+
+  // Notifications view for admin
+  if (user && showNotifications && isAdmin) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#f5f5dc',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '2rem 1rem'
+      }}>
+        <div style={{
+          maxWidth: '600px',
+          margin: '0 auto'
+        }}>
+          <button
+            onClick={() => setShowNotifications(false)}
+            style={{
+              position: 'absolute',
+              top: '2rem',
+              left: '2rem',
+              background: 'rgba(255, 255, 255, 0.9)',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '0.5rem 1rem',
+              fontSize: '1rem',
+              cursor: 'pointer'
+            }}
+          >
+            ← Back
+          </button>
+
+          <h1 style={{
+            fontSize: '2.5rem',
+            color: '#d2691e',
+            marginBottom: '2rem',
+            fontWeight: 'normal',
+            textAlign: 'center'
+          }}>
+            🕊️ Release Feed
+          </h1>
+
+          <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
+            <button
+              onClick={() => loadNotifications()}
+              style={{
+                background: 'rgba(210, 105, 30, 0.1)',
+                border: '1px solid #d2691e',
+                borderRadius: '15px',
+                padding: '0.5rem 1rem',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                color: '#d2691e'
+              }}
+            >
+              🔄 Refresh
+            </button>
+          </div>
+
+          <div style={{
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderRadius: '20px',
+            padding: '1rem'
+          }}>
+            {notifications.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                color: '#8b4513',
+                padding: '2rem',
+                fontSize: '1.1rem'
+              }}>
+                No dove releases yet...
+              </div>
+            ) : (
+              notifications.map((notification, index) => (
+                <div key={index} style={{
+                  padding: '1rem',
+                  marginBottom: '1rem',
+                  backgroundColor: '#fff',
+                  borderRadius: '15px',
+                  border: '1px solid #e0e0e0',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <div style={{
+                      fontWeight: '600',
+                      color: '#d2691e',
+                      fontSize: '1.1rem'
+                    }}>
+                      🕊️ {notification.profiles?.username || notification.username}
+                    </div>
+                    <div style={{
+                      fontSize: '0.8rem',
+                      color: '#8b4513',
+                      opacity: 0.7
+                    }}>
+                      {formatTimeAgo(notification.created_at)}
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    fontSize: '1rem',
+                    color: '#333',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Released <strong>{formatNumber(notification.amount)} Palomas</strong>
+                  </div>
+                  
+                  {notification.reason && notification.reason !== 'Token release' && (
+                    <div style={{
+                      fontSize: '0.9rem',
+                      color: '#666',
+                      fontStyle: 'italic',
+                      backgroundColor: '#f8f9fa',
+                      padding: '0.5rem',
+                      borderRadius: '8px'
+                    }}>
+                      "{notification.reason}"
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (user && showSendForm) {
     return (
@@ -660,6 +864,19 @@ function App() {
               >
                 ⚙️
               </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowNotifications(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '1rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔔
+                </button>
+              )}
             </div>
 
             <a 
