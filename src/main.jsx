@@ -48,6 +48,21 @@ function App() {
           await ensureProfileExists(session.user, client)
           await loadAllProfiles(client)
           await loadNotifications(client)
+          
+          // Set up real-time subscription for notifications
+          const notificationSubscription = client
+            .channel('release_notifications')
+            .on('postgres_changes', 
+              { event: 'INSERT', schema: 'public', table: 'release_notifications' },
+              (payload) => {
+                console.log('New notification received:', payload)
+                loadNotifications(client)
+              }
+            )
+            .subscribe()
+
+          // Store subscription for cleanup
+          client.notificationSubscription = notificationSubscription
         }
       } catch (error) {
         setMessage('Connection failed')
@@ -55,6 +70,13 @@ function App() {
       }
     }
     initSupabase()
+    
+    // Cleanup subscription on unmount
+    return () => {
+      if (supabase?.notificationSubscription) {
+        supabase.notificationSubscription.unsubscribe()
+      }
+    }
   }, [])
 
   const ensureProfileExists = async (authUser, client = supabase) => {
@@ -125,7 +147,9 @@ function App() {
     if (!supabase || !profile) return
 
     try {
-      const { error } = await supabase
+      console.log('Creating notification:', { amount, reason, tokenType, username: profile.username })
+      
+      const { data, error } = await supabase
         .from('release_notifications')
         .insert([{
           user_id: user.id,
@@ -135,9 +159,12 @@ function App() {
           reason: reason || 'Token release',
           created_at: new Date().toISOString()
         }])
+        .select()
 
       if (error) {
         console.error('Error creating notification:', error)
+      } else {
+        console.log('Notification created successfully:', data)
       }
     } catch (error) {
       console.error('Error creating notification:', error)
@@ -290,6 +317,11 @@ function App() {
   }
 
   const handleLogout = async () => {
+    // Cleanup real-time subscription
+    if (supabase?.notificationSubscription) {
+      supabase.notificationSubscription.unsubscribe()
+    }
+    
     if (supabase) {
       await supabase.auth.signOut()
     }
