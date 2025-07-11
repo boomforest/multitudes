@@ -740,7 +740,7 @@ function App() {
               {formatNumber(profile?.dov_balance)}
             </div>
             <br />
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', alignItems: 'center' }}>
               {isAdmin ? (
                 <button
                   onClick={() => setShowSendForm('DOV')}
@@ -754,7 +754,7 @@ function App() {
                     fontWeight: '500',
                     cursor: 'pointer',
                     boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)',
-                    minWidth: '120px'
+                    width: '200px'
                   }}
                 >
                   Send
@@ -772,7 +772,7 @@ function App() {
                     fontWeight: '500',
                     cursor: 'pointer',
                     boxShadow: '0 4px 15px rgba(139, 69, 19, 0.3)',
-                    minWidth: '120px'
+                    width: '200px'
                   }}
                 >
                   Release
@@ -780,7 +780,7 @@ function App() {
               )}
               
               <button
-                onClick={() => window.location.href = '/buy'}
+                onClick={() => window.open('/buy', '_blank')}
                 style={{
                   background: 'linear-gradient(45deg, #d2691e, #cd853f)',
                   color: 'white',
@@ -791,7 +791,7 @@ function App() {
                   fontWeight: '500',
                   cursor: 'pointer',
                   boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)',
-                  minWidth: '120px'
+                  width: '200px'
                 }}
               >
                 Collect
@@ -822,47 +822,9 @@ function App() {
               {formatNumber(profile?.djr_balance)}
             </div>
             <br />
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              {isAdmin ? (
-                <button
-                  onClick={() => setShowSendForm('DJR')}
-                  style={{
-                    background: 'linear-gradient(45deg, #d2691e, #cd853f)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '20px',
-                    padding: '0.8rem 2rem',
-                    fontSize: '1.1rem',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)',
-                    minWidth: '120px'
-                  }}
-                >
-                  Send
-                </button>
-              ) : (
-                <button
-                  onClick={() => setShowReleaseForm('DJR')}
-                  style={{
-                    background: 'linear-gradient(45deg, #8b4513, #a0522d)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '20px',
-                    padding: '0.8rem 2rem',
-                    fontSize: '1.1rem',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 15px rgba(139, 69, 19, 0.3)',
-                    minWidth: '120px'
-                  }}
-                >
-                  Release
-                </button>
-              )}
-              
+            {isAdmin ? (
               <button
-                onClick={() => window.location.href = '/buy'}
+                onClick={() => setShowSendForm('DJR')}
                 style={{
                   background: 'linear-gradient(45deg, #d2691e, #cd853f)',
                   color: 'white',
@@ -873,12 +835,33 @@ function App() {
                   fontWeight: '500',
                   cursor: 'pointer',
                   boxShadow: '0 4px 15px rgba(210, 105, 30, 0.3)',
-                  minWidth: '120px'
+                  width: '200px',
+                  margin: '0 auto'
                 }}
               >
-                Collect
+                Send
               </button>
-            </div>
+            ) : (
+              <button
+                onClick={() => setShowReleaseForm('DJR')}
+                style={{
+                  background: 'linear-gradient(45deg, #8b4513, #a0522d)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '20px',
+                  padding: '0.8rem 2rem',
+                  fontSize: '1.1rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(139, 69, 19, 0.3)',
+                  width: '200px',
+                  margin: '0 auto',
+                  display: 'block'
+                }}
+              >
+                Release
+              </button>
+            )}
           </div>
         </div>
       </div>
