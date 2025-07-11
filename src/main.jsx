@@ -780,7 +780,7 @@ function App() {
               )}
               
               <button
-                onClick={() => window.open('/buy', '_blank')}
+                onClick={() => window.open('https://grail3.netlify.app/buy/', '_blank')}
                 style={{
                   background: 'linear-gradient(45deg, #d2691e, #cd853f)',
                   color: 'white',
