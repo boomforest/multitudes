@@ -417,10 +417,8 @@ function App() {
           .eq('id', user.id)
       }
 
-      // Create notification for the release (only for DOV/Palomas releases)
-      if (tokenType === 'DOV') {
-        await createReleaseNotification(amount, reason, tokenType)
-      }
+      // Create notification for all releases (both DOV/Palomas and DJR/Palomitas)
+      await createReleaseNotification(amount, reason, tokenType)
 
       setMessage('Released ' + amount + ' ' + tokenType + '!')
       setReleaseData({ amount: '', reason: '' })
@@ -532,7 +530,7 @@ function App() {
                 padding: '2rem',
                 fontSize: '1.1rem'
               }}>
-                No dove releases yet...
+                No token releases yet...
               </div>
             ) : (
               notifications.map((notification, index) => (
@@ -571,7 +569,7 @@ function App() {
                     color: '#333',
                     marginBottom: '0.5rem'
                   }}>
-                    Released <strong>{formatNumber(notification.amount)} Palomas</strong>
+                    Released <strong>{formatNumber(notification.amount)} {notification.token_type === 'DOV' ? 'Palomas' : 'Palomitas'}</strong>
                   </div>
                   
                   {notification.reason && notification.reason !== 'Token release' && (
