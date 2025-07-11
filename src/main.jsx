@@ -10,9 +10,7 @@ const formatTimeAgo = (dateString) => {
     if (diffMins < 60) return `${diffMins}m ago`
     if (diffHours < 24) return `${diffHours}h ago`
     return `${diffDays}d ago`
- }
-
-import React, { useState, useEffect } from 'react'
+  }import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import WalletInput from './WalletInput';
 
@@ -44,6 +42,7 @@ function App() {
   const [isTransferring, setIsTransferring] = useState(false)
   const [isReleasing, setIsReleasing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false)
 
   useEffect(() => {
     const initSupabase = async () => {
@@ -59,6 +58,11 @@ function App() {
         const { data: { session } } = await client.auth.getSession()
         if (session?.user) {
           setUser(session.user)
+          // Check if email is confirmed
+          if (!session.user.email_confirmed_at) {
+            setMessage('Please check your email and click the confirmation link to complete registration.')
+            return
+          }
           await ensureProfileExists(session.user, client)
           await loadAllProfiles(client)
           await loadNotifications(client)
@@ -296,6 +300,14 @@ function App() {
         return
       }
 
+      // Check if email confirmation is required
+      if (!authData.session) {
+        setEmailVerificationSent(true)
+        setMessage('Account created! Please check your email and click the confirmation link to complete registration.')
+        setFormData({ email: '', password: '', username: '' })
+        return
+      }
+
       setMessage('Account created, setting up profile...')
       const profile = await ensureProfileExists(authData.user)
       
@@ -340,6 +352,12 @@ function App() {
         return
       }
 
+      // Check if email is confirmed
+      if (data.user && !data.user.email_confirmed_at) {
+        setMessage('Please check your email and click the confirmation link before logging in.')
+        return
+      }
+
       setMessage('Login successful, checking profile...')
       setUser(data.user)
       await ensureProfileExists(data.user)
@@ -370,6 +388,7 @@ function App() {
     setShowSendForm(null)
     setShowReleaseForm(null)
     setShowNotifications(false)
+    setEmailVerificationSent(false)
     setMessage('')
     setFormData({ email: '', password: '', username: '' })
     setTransferData({ recipient: '', amount: '' })
@@ -522,6 +541,32 @@ function App() {
   }
 
   const isAdmin = profile?.username === 'JPR333'
+
+  // Add resend verification email function
+  const resendVerificationEmail = async () => {
+    if (!supabase || !formData.email) {
+      setMessage('Please enter your email address first')
+      return
+    }
+
+    try {
+      setLoading(true)
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email
+      })
+
+      if (error) {
+        setMessage('Failed to resend verification email: ' + error.message)
+      } else {
+        setMessage('Verification email sent! Please check your inbox.')
+      }
+    } catch (err) {
+      setMessage('Error resending email: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Notifications view for admin
   if (user && showNotifications && isAdmin) {
@@ -1227,13 +1272,45 @@ function App() {
             padding: '1rem',
             borderRadius: '15px',
             marginBottom: '1rem',
-            backgroundColor: message.includes('successful') ? '#d4edda' : 
-                           message.includes('failed') ? '#f8d7da' : '#fff3cd',
-            color: message.includes('successful') ? '#155724' : 
-                   message.includes('failed') ? '#721c24' : '#856404',
+            backgroundColor: message.includes('successful') || message.includes('sent') || message.includes('created') ? '#d4edda' : 
+                           message.includes('failed') || message.includes('error') ? '#f8d7da' : '#fff3cd',
+            color: message.includes('successful') || message.includes('sent') || message.includes('created') ? '#155724' : 
+                   message.includes('failed') || message.includes('error') ? '#721c24' : '#856404',
             fontSize: '0.9rem'
           }}>
             {message}
+          </div>
+        )}
+
+        {emailVerificationSent && (
+          <div style={{
+            padding: '1rem',
+            borderRadius: '15px',
+            marginBottom: '1rem',
+            backgroundColor: '#d1ecf1',
+            color: '#0c5460',
+            fontSize: '0.9rem',
+            textAlign: 'center'
+          }}>
+            <p style={{ margin: '0 0 1rem 0' }}>
+              📧 Check your email for a verification link!
+            </p>
+            <button
+              onClick={resendVerificationEmail}
+              disabled={loading}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#17a2b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                opacity: loading ? 0.5 : 1
+              }}
+            >
+              {loading ? 'Sending...' : 'Resend Email'}
+            </button>
           </div>
         )}
 
