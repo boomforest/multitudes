@@ -10,9 +10,7 @@ const formatTimeAgo = (dateString) => {
     if (diffMins < 60) return `${diffMins}m ago`
     if (diffHours < 24) return `${diffHours}h ago`
     return `${diffDays}d ago`
-  }
-
-import React, { useState, useEffect } from 'react'
+  }import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import WalletInput from './WalletInput';
 
@@ -44,7 +42,6 @@ function App() {
   const [isTransferring, setIsTransferring] = useState(false)
   const [isReleasing, setIsReleasing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [debugMessages, setDebugMessages] = useState([]) // For mobile debugging
 
   useEffect(() => {
     const initSupabase = async () => {
@@ -145,12 +142,12 @@ function App() {
   // Load notifications for admin view - simplified approach
   const loadNotifications = async (client = supabase) => {
     if (!client) {
-      addDebugMessage('No supabase client available')
+      console.log('No supabase client available')
       return
     }
 
     try {
-      addDebugMessage('Attempting to load notifications...')
+      console.log('Attempting to load notifications...')
       
       // Simple query without any joins
       const response = await client
@@ -159,19 +156,19 @@ function App() {
         .order('created_at', { ascending: false })
         .limit(50)
       
-      addDebugMessage(`Supabase response: ${response.error ? 'ERROR' : 'SUCCESS'} - Found ${response.data?.length || 0} notifications`)
+      console.log(`Supabase response: ${response.error ? 'ERROR' : 'SUCCESS'} - Found ${response.data?.length || 0} notifications`)
       
       if (response.error) {
-        addDebugMessage(`Supabase error: ${response.error.message}`)
+        console.error('Supabase error:', response.error)
         setNotifications([])
         return
       }
       
-      addDebugMessage(`Successfully loaded ${response.data.length} notifications`)
+      console.log(`Successfully loaded ${response.data.length} notifications`)
       setNotifications(response.data || [])
       
     } catch (error) {
-      addDebugMessage(`Catch block error: ${error.message}`)
+      console.error('Catch block error:', error)
       setNotifications([])
     }
   }
@@ -179,7 +176,7 @@ function App() {
   // Create notification when releasing tokens
   const createReleaseNotification = async (amount, reason, tokenType) => {
     if (!supabase || !profile) {
-      addDebugMessage('Cannot create notification - missing supabase or profile')
+      console.log('Cannot create notification - missing supabase or profile')
       return
     }
 
@@ -192,7 +189,7 @@ function App() {
         reason: reason || 'Token release'
       }
       
-      addDebugMessage(`Creating notification: ${profile.username} released ${amount} ${tokenType}`)
+      console.log(`Creating notification: ${profile.username} released ${amount} ${tokenType}`)
       
       const response = await supabase
         .from('release_notifications')
@@ -200,12 +197,12 @@ function App() {
         .select()
 
       if (response.error) {
-        addDebugMessage(`ERROR creating notification: ${response.error.message}`)
+        console.error(`ERROR creating notification: ${response.error.message}`)
       } else {
-        addDebugMessage(`SUCCESS: Notification created!`)
+        console.log(`SUCCESS: Notification created!`)
       }
     } catch (error) {
-      addDebugMessage(`CATCH ERROR: ${error.message}`)
+      console.error(`CATCH ERROR: ${error.message}`)
     }
   }
 
@@ -488,9 +485,9 @@ function App() {
       }
 
       // Create notification for all releases (both DOV/Palomas and DJR/Palomitas)
-      addDebugMessage(`About to create notification for ${tokenType} release`)
+      console.log(`About to create notification for ${tokenType} release`)
       await createReleaseNotification(amount, reason, tokenType)
-      addDebugMessage('Finished creating notification')
+      console.log('Finished creating notification')
 
       setMessage('Released ' + amount + ' ' + tokenType + '!')
       setReleaseData({ amount: '', reason: '' })
@@ -1009,43 +1006,6 @@ function App() {
               fontSize: '0.9rem'
             }}>
               {message}
-            </div>
-          )}
-
-          {/* Debug messages for mobile testing */}
-          {debugMessages.length > 0 && (
-            <div style={{
-              position: 'fixed',
-              bottom: '1rem',
-              left: '1rem',
-              right: '1rem',
-              background: 'rgba(0, 0, 0, 0.8)',
-              color: 'white',
-              padding: '0.5rem',
-              borderRadius: '10px',
-              fontSize: '0.8rem',
-              zIndex: 9999,
-              maxHeight: '150px',
-              overflowY: 'auto'
-            }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Debug Messages:</div>
-              {debugMessages.map((msg, i) => (
-                <div key={i} style={{ marginBottom: '0.25rem' }}>{msg}</div>
-              ))}
-              <button
-                onClick={() => setDebugMessages([])}
-                style={{
-                  marginTop: '0.5rem',
-                  padding: '0.25rem 0.5rem',
-                  background: '#333',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  fontSize: '0.7rem'
-                }}
-              >
-                Clear
-              </button>
             </div>
           )}
 
