@@ -780,7 +780,7 @@ function App() {
               )}
               
               <button
-                onClick={() => window.open('https://grail3.netlify.app/buy/', '_blank')}
+                onClick={() => window.open('https://www.paypal.com/ncp/payment/LEWS26K7J8FAC', '_blank')}
                 style={{
                   background: 'linear-gradient(45deg, #d2691e, #cd853f)',
                   color: 'white',
