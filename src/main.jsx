@@ -1,4 +1,16 @@
-import React, { useState, useEffect } from 'react'
+const formatTimeAgo = (dateString) => {
+    const now = new Date()
+    const then = new Date(dateString)
+    const diffMs = now - then
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    return `${diffDays}d ago`
+  }import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import WalletInput from './WalletInput';
 
@@ -30,6 +42,7 @@ function App() {
   const [isTransferring, setIsTransferring] = useState(false)
   const [isReleasing, setIsReleasing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [debugMessages, setDebugMessages] = useState([]) // For mobile debugging
 
   useEffect(() => {
     const initSupabase = async () => {
@@ -130,12 +143,12 @@ function App() {
   // Load notifications for admin view - simplified approach
   const loadNotifications = async (client = supabase) => {
     if (!client) {
-      console.log('No supabase client available')
+      addDebugMessage('No supabase client available')
       return
     }
 
     try {
-      console.log('Attempting to load notifications...')
+      addDebugMessage('Attempting to load notifications...')
       
       // Simple query without any joins
       const response = await client
@@ -144,19 +157,19 @@ function App() {
         .order('created_at', { ascending: false })
         .limit(50)
       
-      console.log('Supabase response:', response)
+      addDebugMessage(`Supabase response: ${response.error ? 'ERROR' : 'SUCCESS'} - Found ${response.data?.length || 0} notifications`)
       
       if (response.error) {
-        console.error('Supabase error:', response.error)
+        addDebugMessage(`Supabase error: ${response.error.message}`)
         setNotifications([])
         return
       }
       
-      console.log('Successfully loaded notifications:', response.data)
+      addDebugMessage(`Successfully loaded ${response.data.length} notifications`)
       setNotifications(response.data || [])
       
     } catch (error) {
-      console.error('Catch block - Error loading notifications:', error)
+      addDebugMessage(`Catch block error: ${error.message}`)
       setNotifications([])
     }
   }
@@ -164,7 +177,7 @@ function App() {
   // Create notification when releasing tokens
   const createReleaseNotification = async (amount, reason, tokenType) => {
     if (!supabase || !profile) {
-      console.log('Cannot create notification - missing supabase or profile')
+      addDebugMessage('Cannot create notification - missing supabase or profile')
       return
     }
 
@@ -177,22 +190,20 @@ function App() {
         reason: reason || 'Token release'
       }
       
-      console.log('Creating notification with data:', notificationData)
+      addDebugMessage(`Creating notification: ${profile.username} released ${amount} ${tokenType}`)
       
       const response = await supabase
         .from('release_notifications')
         .insert([notificationData])
         .select()
 
-      console.log('Create notification response:', response)
-
       if (response.error) {
-        console.error('Error creating notification:', response.error)
+        addDebugMessage(`ERROR creating notification: ${response.error.message}`)
       } else {
-        console.log('Notification created successfully:', response.data)
+        addDebugMessage(`SUCCESS: Notification created!`)
       }
     } catch (error) {
-      console.error('Catch block - Error creating notification:', error)
+      addDebugMessage(`CATCH ERROR: ${error.message}`)
     }
   }
 
@@ -475,9 +486,9 @@ function App() {
       }
 
       // Create notification for all releases (both DOV/Palomas and DJR/Palomitas)
-      console.log('About to create notification for release:', { amount, reason, tokenType })
+      addDebugMessage(`About to create notification for ${tokenType} release`)
       await createReleaseNotification(amount, reason, tokenType)
-      console.log('Finished creating notification')
+      addDebugMessage('Finished creating notification')
 
       setMessage('Released ' + amount + ' ' + tokenType + '!')
       setReleaseData({ amount: '', reason: '' })
@@ -502,18 +513,11 @@ function App() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
-  const formatTimeAgo = (dateString) => {
-    const now = new Date()
-    const then = new Date(dateString)
-    const diffMs = now - then
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
-
-    if (diffMins < 1) return 'just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    return `${diffDays}d ago`
+  // Add debug message function for mobile testing
+  const addDebugMessage = (message) => {
+    const timestamp = new Date().toLocaleTimeString()
+    setDebugMessages(prev => [...prev.slice(-4), `${timestamp}: ${message}`]) // Keep last 5 messages
+    console.log(message)
   }
 
   const isAdmin = profile?.username === 'JPR333'
@@ -1003,6 +1007,43 @@ function App() {
               fontSize: '0.9rem'
             }}>
               {message}
+            </div>
+          )}
+
+          {/* Debug messages for mobile testing */}
+          {debugMessages.length > 0 && (
+            <div style={{
+              position: 'fixed',
+              bottom: '1rem',
+              left: '1rem',
+              right: '1rem',
+              background: 'rgba(0, 0, 0, 0.8)',
+              color: 'white',
+              padding: '0.5rem',
+              borderRadius: '10px',
+              fontSize: '0.8rem',
+              zIndex: 9999,
+              maxHeight: '150px',
+              overflowY: 'auto'
+            }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Debug Messages:</div>
+              {debugMessages.map((msg, i) => (
+                <div key={i} style={{ marginBottom: '0.25rem' }}>{msg}</div>
+              ))}
+              <button
+                onClick={() => setDebugMessages([])}
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.25rem 0.5rem',
+                  background: '#333',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '0.7rem'
+                }}
+              >
+                Clear
+              </button>
             </div>
           )}
 
