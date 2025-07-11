@@ -649,9 +649,6 @@ function App() {
               alignItems: 'center',
               gap: '0.5rem'
             }}>
-              <span style={{ fontWeight: '500' }}>
-                {profile?.username} {isAdmin && '🕊'}
-              </span>
               <button
                 onClick={() => setShowSettings(!showSettings)}
                 style={{
@@ -661,9 +658,27 @@ function App() {
                   cursor: 'pointer'
                 }}
               >
-                
+                ⚙️
               </button>
             </div>
+
+            <a 
+              href="https://hanglight.mx" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{
+                textDecoration: 'none',
+                fontSize: '1.5rem',
+                background: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: '20px',
+                padding: '0.5rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              🟢
+            </a>
 
             {showSettings && (
               <div style={{
