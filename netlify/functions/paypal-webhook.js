@@ -23,10 +23,10 @@ exports.handler = async (event, context) => {
       const amount = parseFloat(payment.amount.value)
       const userId = payment.custom_id // This will be the user's ID
       
-      // Calculate DOV tokens ($1 = 100 DOV)
-      const dovTokens = amount * 100
+      // Calculate DOV tokens ($1 = 1 DOV)
+      const dovTokens = amount
       
-      console.log(`Payment: $${amount} -> ${dovTokens} DOV for user ${userId}`)
+      console.log(`Payment: ${amount} -> ${dovTokens} DOV for user ${userId}`)
       
       if (userId) {
         // Initialize Supabase client
