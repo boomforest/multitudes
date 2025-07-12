@@ -10,7 +10,9 @@ const formatTimeAgo = (dateString) => {
     if (diffMins < 60) return `${diffMins}m ago`
     if (diffHours < 24) return `${diffHours}h ago`
     return `${diffDays}d ago`
-  }import React, { useState, useEffect } from 'react'
+}
+
+import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import WalletInput from './WalletInput';
 
@@ -27,7 +29,8 @@ function App() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    username: ''
+    username: '',
+    name: ''
   })
   const [transferData, setTransferData] = useState({
     recipient: '',
@@ -115,6 +118,7 @@ function App() {
         id: authUser.id,
         username: authUser.email === 'jproney@gmail.com' ? 'JPR333' : username,
         email: authUser.email,
+        name: authUser.user_metadata?.name || '',
         dov_balance: isAdmin ? 1000000 : 0,
         djr_balance: isAdmin ? 1000000 : 0
       }
@@ -261,7 +265,7 @@ function App() {
     }
 
     if (!formData.email || !formData.password || !formData.username) {
-      setMessage('Please fill in all fields')
+      setMessage('Please fill in all required fields')
       return
     }
 
@@ -279,7 +283,8 @@ function App() {
         password: formData.password,
         options: {
           data: {
-            username: formData.username
+            username: formData.username,
+            name: formData.name
           }
         }
       })
@@ -302,7 +307,7 @@ function App() {
         await loadAllProfiles()
         await loadNotifications()
         setMessage('Registration successful!')
-        setFormData({ email: '', password: '', username: '' })
+        setFormData({ email: '', password: '', username: '', name: '' })
       } else {
         setMessage('Account created but profile setup failed. Please try logging in.')
       }
@@ -343,7 +348,7 @@ function App() {
       await ensureProfileExists(data.user)
       await loadAllProfiles()
       await loadNotifications()
-      setFormData({ email: '', password: '', username: '' })
+      setFormData({ email: '', password: '', username: '', name: '' })
     } catch (err) {
       setMessage('Login error: ' + err.message)
     } finally {
@@ -369,7 +374,7 @@ function App() {
     setShowReleaseForm(null)
     setShowNotifications(false)
     setMessage('')
-    setFormData({ email: '', password: '', username: '' })
+    setFormData({ email: '', password: '', username: '', name: '' })
     setTransferData({ recipient: '', amount: '' })
     setReleaseData({ amount: '', reason: '' })
   }
@@ -1270,23 +1275,41 @@ function App() {
         />
 
         {activeTab === 'register' && (
-          <input
-            type="text"
-            value={formData.username}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value.toUpperCase() })}
-            placeholder="Username (ABC123)"
-            maxLength={6}
-            style={{
-              width: '100%',
-              padding: '1rem',
-              border: '2px solid #e0e0e0',
-              borderRadius: '15px',
-              marginBottom: '1rem',
-              boxSizing: 'border-box',
-              fontSize: '1rem',
-              outline: 'none'
-            }}
-          />
+          <>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Display Name (optional)"
+              style={{
+                width: '100%',
+                padding: '1rem',
+                border: '2px solid #e0e0e0',
+                borderRadius: '15px',
+                marginBottom: '1rem',
+                boxSizing: 'border-box',
+                fontSize: '1rem',
+                outline: 'none'
+              }}
+            />
+            <input
+              type="text"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value.toUpperCase() })}
+              placeholder="Username (ABC123)"
+              maxLength={6}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                border: '2px solid #e0e0e0',
+                borderRadius: '15px',
+                marginBottom: '1rem',
+                boxSizing: 'border-box',
+                fontSize: '1rem',
+                outline: 'none'
+              }}
+            />
+          </>
         )}
 
         <button 
