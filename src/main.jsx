@@ -1077,7 +1077,16 @@ function App() {
               )}
               
               <button
-                onClick={() => window.open('https://www.paypal.com/ncp/payment/LEWS26K7J8FAC', '_blank')}
+                onClick={() => {
+                  if (!user) {
+                    setMessage('Please log in to collect tokens')
+                    return
+                  }
+                  // Pass user ID to PayPal so webhook knows who paid
+                  const paypalUrl = `https://www.paypal.com/ncp/payment/LEWS26K7J8FAC?custom_id=${user.id}`
+                  window.open(paypalUrl, '_blank')
+                  setMessage('Complete your PayPal payment. Tokens will be credited automatically!')
+                }}
                 style={{
                   background: 'linear-gradient(45deg, #d2691e, #cd853f)',
                   color: 'white',
