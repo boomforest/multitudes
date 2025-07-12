@@ -713,23 +713,28 @@ function App() {
 
           <div style={{ marginBottom: '2rem' }}>
             <input
-              type="text"
-              value={transferData.recipient}
-              onChange={(e) => setTransferData({ ...transferData, recipient: e.target.value.toUpperCase() })}
-              placeholder="Recipient Username (ABC123)"
-              maxLength={6}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                fontSize: '1.2rem',
-                border: '2px solid #d2691e',
-                borderRadius: '25px',
-                textAlign: 'center',
-                marginBottom: '1rem',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
+  type="text"
+  value={formData.username}
+  onChange={(e) => {
+    // Allow only alphanumeric characters and convert letters to uppercase
+    const value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    setFormData({ ...formData, username: value });
+  }}
+  placeholder="Username (ABC123)"
+  maxLength={6}
+  inputMode="text" // This helps mobile keyboards show both letters and numbers
+  autoComplete="username"
+  style={{
+    width: '100%',
+    padding: '1rem',
+    border: '2px solid #e0e0e0',
+    borderRadius: '15px',
+    marginBottom: '1rem',
+    boxSizing: 'border-box',
+    fontSize: '1rem',
+    outline: 'none'
+  }}
+/>
 
             <input
               type="number"
