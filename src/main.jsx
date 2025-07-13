@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import LoginForm from './components/LoginForm'
-import Dashboard from './components/Dashboard'
-import SendForm from './components/SendForm'
-import ReleaseForm from './components/ReleaseForm'
-import NotificationsFeed from './components/NotificationsFeed'
+import FriendsList from './components/FriendsList'
+import AddFriend from './components/AddFriend'
+import OfrendaProfile from './components/OfrendaProfile'
 import ManifestoPopup from './components/ManifestoPopup'
 import FloatingGrailButton from './components/FloatingGrailButton'
 
@@ -13,14 +12,12 @@ function App() {
   const [supabase, setSupabase] = useState(null)
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
-  const [allProfiles, setAllProfiles] = useState([])
-  const [notifications, setNotifications] = useState([])
+  const [friends, setFriends] = useState([])
+  const [ofrendaData, setOfrendaData] = useState(null)
   
   // UI state
   const [activeTab, setActiveTab] = useState('login')
-  const [showSendForm, setShowSendForm] = useState(null)
-  const [showReleaseForm, setShowReleaseForm] = useState(null)
-  const [showNotifications, setShowNotifications] = useState(false)
+  const [currentView, setCurrentView] = useState('friends') // 'friends', 'add-friend', 'ofrenda'
   const [showSettings, setShowSettings] = useState(false)
   const [showManifesto, setShowManifesto] = useState(false)
   
@@ -31,20 +28,10 @@ function App() {
     username: '',
     name: ''
   })
-  const [transferData, setTransferData] = useState({
-    recipient: '',
-    amount: ''
-  })
-  const [releaseData, setReleaseData] = useState({
-    amount: '',
-    reason: ''
-  })
   
   // Loading states
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [isTransferring, setIsTransferring] = useState(false)
-  const [isReleasing, setIsReleasing] = useState(false)
 
   useEffect(() => {
     const initSupabase = async () => {
@@ -61,26 +48,8 @@ function App() {
         if (session?.user) {
           setUser(session.user)
           await ensureProfileExists(session.user, client)
-          await loadAllProfiles(client)
-          await loadNotifications(client)
-          
-          // Set up real-time subscription for notifications
-          try {
-            const notificationSubscription = client
-              .channel('release_notifications')
-              .on('postgres_changes', 
-                { event: 'INSERT', schema: 'public', table: 'release_notifications' },
-                (payload) => {
-                  console.log('New notification received:', payload)
-                  loadNotifications(client)
-                }
-              )
-              .subscribe()
-
-            client.notificationSubscription = notificationSubscription
-          } catch (subscriptionError) {
-            console.warn('Could not set up real-time notifications:', subscriptionError)
-          }
+          await loadFriends(client)
+          await loadOfrendaData(client)
         }
       } catch (error) {
         setMessage('Connection failed')
@@ -88,12 +57,6 @@ function App() {
       }
     }
     initSupabase()
-    
-    return () => {
-      if (supabase?.notificationSubscription) {
-        supabase.notificationSubscription.unsubscribe()
-      }
-    }
   }, [])
 
   const ensureProfileExists = async (authUser, client = supabase) => {
@@ -110,15 +73,14 @@ function App() {
       }
 
       const username = authUser.user_metadata?.username || 'USER' + Math.random().toString(36).substr(2, 3).toUpperCase()
-      const isAdmin = username === 'JPR333' || authUser.email === 'jproney@gmail.com'
       
       const newProfile = {
         id: authUser.id,
-        username: authUser.email === 'jproney@gmail.com' ? 'JPR333' : username,
+        username: username,
         email: authUser.email,
         name: authUser.user_metadata?.name || '',
-        dov_balance: isAdmin ? 1000000 : 0,
-        djr_balance: isAdmin ? 1000000 : 0
+        dov_balance: 0,
+        djr_balance: 0
       }
 
       const { data: createdProfile, error: createError } = await client
@@ -141,112 +103,146 @@ function App() {
     }
   }
 
-  const loadNotifications = async (client = supabase) => {
-    if (!client) {
-      console.log('No supabase client available')
-      return
-    }
+  const loadFriends = async (client = supabase) => {
+    if (!client || !user) return
 
-    try {
-      console.log('Attempting to load notifications...')
-      
-      const response = await client
-        .from('release_notifications')
-        .select('id, user_id, username, token_type, amount, reason, created_at')
-        .order('created_at', { ascending: false })
-        .limit(50)
-      
-      console.log(`Supabase response: ${response.error ? 'ERROR' : 'SUCCESS'} - Found ${response.data?.length || 0} notifications`)
-      
-      if (response.error) {
-        console.error('Supabase error:', response.error)
-        setNotifications([])
-        return
-      }
-      
-      console.log(`Successfully loaded ${response.data.length} notifications`)
-      setNotifications(response.data || [])
-      
-    } catch (error) {
-      console.error('Catch block error:', error)
-      setNotifications([])
-    }
-  }
-
-  const createReleaseNotification = async (amount, reason, tokenType) => {
-    if (!supabase || !profile) {
-      console.log('Cannot create notification - missing supabase or profile')
-      return
-    }
-
-    try {
-      const notificationData = {
-        user_id: user.id,
-        username: profile.username,
-        token_type: tokenType,
-        amount: parseFloat(amount),
-        reason: reason || 'Token release'
-      }
-      
-      console.log(`Creating notification: ${profile.username} released ${amount} ${tokenType}`)
-      
-      const response = await supabase
-        .from('release_notifications')
-        .insert([notificationData])
-        .select()
-
-      if (response.error) {
-        console.error(`ERROR creating notification: ${response.error.message}`)
-      } else {
-        console.log(`SUCCESS: Notification created!`)
-      }
-    } catch (error) {
-      console.error(`CATCH ERROR: ${error.message}`)
-    }
-  }
-
-  const handleWalletSave = async (walletAddress) => {
-    if (!supabase || !user) {
-      console.log('No supabase client or user available')
-      return
-    }
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ wallet_address: walletAddress || null })
-        .eq('id', user.id)
-
-      if (error) {
-        console.error('Error saving wallet address:', error)
-        setMessage('Failed to save wallet address: ' + error.message)
-        return
-      }
-
-      await ensureProfileExists(user)
-      
-      if (walletAddress) {
-        setMessage('Wallet address saved! 🎉')
-      } else {
-        setMessage('Wallet address removed')
-      }
-    } catch (error) {
-      console.error('Error handling wallet save:', error)
-      setMessage('Error saving wallet: ' + error.message)
-    }
-  }
-
-  const loadAllProfiles = async (client = supabase) => {
     try {
       const { data, error } = await client
-        .from('profiles')
+        .from('friends')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
       
       if (error) throw error
-      setAllProfiles(data || [])
+      setFriends(data || [])
     } catch (error) {
-      console.error('Error loading profiles:', error)
+      console.error('Error loading friends:', error)
+    }
+  }
+
+  const loadOfrendaData = async (client = supabase) => {
+    if (!client || !user) return
+
+    try {
+      const { data, error } = await client
+        .from('ofrenda_data')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        throw error
+      }
+      
+      setOfrendaData(data)
+    } catch (error) {
+      console.error('Error loading ofrenda data:', error)
+    }
+  }
+
+  const handleAddFriend = async (friendData) => {
+    if (!supabase || !user) return
+
+    try {
+      const newFriend = {
+        user_id: user.id,
+        friend_name: friendData.name,
+        color_code: friendData.color,
+        notes: friendData.notes || ''
+      }
+
+      const { data, error } = await supabase
+        .from('friends')
+        .insert([newFriend])
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setFriends(prev => [data, ...prev])
+      setMessage(`Added ${friendData.name} to your friends!`)
+      setCurrentView('friends')
+    } catch (error) {
+      setMessage('Error adding friend: ' + error.message)
+    }
+  }
+
+  const handleUpdateFriend = async (friendId, updates) => {
+    if (!supabase) return
+
+    try {
+      const { data, error } = await supabase
+        .from('friends')
+        .update(updates)
+        .eq('id', friendId)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setFriends(prev => prev.map(friend => 
+        friend.id === friendId ? data : friend
+      ))
+      setMessage('Friend updated!')
+    } catch (error) {
+      setMessage('Error updating friend: ' + error.message)
+    }
+  }
+
+  const handleDeleteFriend = async (friendId) => {
+    if (!supabase) return
+
+    try {
+      const { error } = await supabase
+        .from('friends')
+        .delete()
+        .eq('id', friendId)
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      setFriends(prev => prev.filter(friend => friend.id !== friendId))
+      setMessage('Friend removed')
+    } catch (error) {
+      setMessage('Error removing friend: ' + error.message)
+    }
+  }
+
+  const handleSaveOfrendaData = async (data) => {
+    if (!supabase || !user) return
+
+    try {
+      const ofrendaRecord = {
+        user_id: user.id,
+        ...data
+      }
+
+      let result
+      if (ofrendaData) {
+        // Update existing
+        result = await supabase
+          .from('ofrenda_data')
+          .update(ofrendaRecord)
+          .eq('user_id', user.id)
+          .select()
+          .single()
+      } else {
+        // Create new
+        result = await supabase
+          .from('ofrenda_data')
+          .insert([ofrendaRecord])
+          .select()
+          .single()
+      }
+
+      if (result.error) throw result.error
+
+      setOfrendaData(result.data)
+      setMessage('Ofrenda data saved!')
+      setCurrentView('friends')
+    } catch (error) {
+      setMessage('Error saving ofrenda data: ' + error.message)
     }
   }
 
@@ -296,8 +292,8 @@ function App() {
       
       if (profile) {
         setUser(authData.user)
-        await loadAllProfiles()
-        await loadNotifications()
+        await loadFriends()
+        await loadOfrendaData()
         setMessage('Registration successful!')
         setFormData({ email: '', password: '', username: '', name: '' })
       } else {
@@ -335,11 +331,11 @@ function App() {
         return
       }
 
-      setMessage('Login successful, checking profile...')
+      setMessage('Login successful, loading your data...')
       setUser(data.user)
       await ensureProfileExists(data.user)
-      await loadAllProfiles()
-      await loadNotifications()
+      await loadFriends()
+      await loadOfrendaData()
       setFormData({ email: '', password: '', username: '', name: '' })
     } catch (err) {
       setMessage('Login error: ' + err.message)
@@ -349,175 +345,28 @@ function App() {
   }
 
   const handleLogout = async () => {
-    if (supabase?.notificationSubscription) {
-      supabase.notificationSubscription.unsubscribe()
-    }
-    
     if (supabase) {
       await supabase.auth.signOut()
     }
     setUser(null)
     setProfile(null)
-    setAllProfiles([])
-    setNotifications([])
+    setFriends([])
+    setOfrendaData(null)
+    setCurrentView('friends')
     setShowSettings(false)
-    setShowSendForm(null)
-    setShowReleaseForm(null)
-    setShowNotifications(false)
     setShowManifesto(false)
     setMessage('')
     setFormData({ email: '', password: '', username: '', name: '' })
-    setTransferData({ recipient: '', amount: '' })
-    setReleaseData({ amount: '', reason: '' })
   }
-
-  const handleAdminTransfer = async (tokenType) => {
-    if (!supabase || !profile) {
-      setMessage('Please wait for connection...')
-      return
-    }
-
-    const recipient = transferData.recipient.trim().toUpperCase()
-    const amount = parseFloat(transferData.amount)
-
-    if (!recipient || !amount) {
-      setMessage('Please fill in recipient and amount')
-      return
-    }
-
-    try {
-      setIsTransferring(true)
-
-      const { data: recipientProfile, error: findError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('username', recipient)
-        .single()
-
-      if (findError || !recipientProfile) {
-        setMessage('Recipient not found')
-        return
-      }
-
-      if (recipientProfile.id === user.id) {
-        setMessage('Cannot send to yourself')
-        return
-      }
-
-      const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
-      if (currentBalance < amount) {
-        setMessage('Insufficient tokens')
-        return
-      }
-
-      if (tokenType === 'DOV') {
-        await supabase
-          .from('profiles')
-          .update({ dov_balance: profile.dov_balance - amount })
-          .eq('id', user.id)
-
-        await supabase
-          .from('profiles')
-          .update({ dov_balance: recipientProfile.dov_balance + amount })
-          .eq('id', recipientProfile.id)
-      } else {
-        await supabase
-          .from('profiles')
-          .update({ djr_balance: profile.djr_balance - amount })
-          .eq('id', user.id)
-
-        await supabase
-          .from('profiles')
-          .update({ djr_balance: recipientProfile.djr_balance + amount })
-          .eq('id', recipientProfile.id)
-      }
-
-      setMessage('Sent ' + amount + ' ' + tokenType + ' to ' + recipient + '!')
-      setTransferData({ recipient: '', amount: '' })
-      setShowSendForm(null)
-      
-      await ensureProfileExists(user)
-      await loadAllProfiles()
-    } catch (err) {
-      setMessage('Transfer failed: ' + err.message)
-    } finally {
-      setIsTransferring(false)
-    }
-  }
-
-  const handleRelease = async (tokenType) => {
-    if (!supabase || !profile) {
-      setMessage('Please wait for connection...')
-      return
-    }
-
-    const amount = parseFloat(releaseData.amount)
-    const reason = releaseData.reason.trim() || 'Token release'
-
-    if (!amount) {
-      setMessage('Please enter amount')
-      return
-    }
-
-    const currentBalance = tokenType === 'DOV' ? profile.dov_balance : profile.djr_balance
-    if (currentBalance < amount) {
-      setMessage('Insufficient tokens')
-      return
-    }
-
-    try {
-      setIsReleasing(true)
-
-      if (tokenType === 'DOV') {
-        await supabase
-          .from('profiles')
-          .update({ dov_balance: profile.dov_balance - amount })
-          .eq('id', user.id)
-      } else {
-        await supabase
-          .from('profiles')
-          .update({ djr_balance: profile.djr_balance - amount })
-          .eq('id', user.id)
-      }
-
-      console.log(`About to create notification for ${tokenType} release`)
-      await createReleaseNotification(amount, reason, tokenType)
-      console.log('Finished creating notification')
-
-      setMessage('Released ' + amount + ' ' + tokenType + '!')
-      setReleaseData({ amount: '', reason: '' })
-      setShowReleaseForm(null)
-      
-      await ensureProfileExists(user)
-      await loadAllProfiles()
-      await loadNotifications()
-    } catch (err) {
-      setMessage('Release failed: ' + err.message)
-    } finally {
-      setIsReleasing(false)
-    }
-  }
-
-  const handlePayPalClick = () => {
-    if (!user) {
-      setMessage('Please log in to collect tokens')
-      return
-    }
-    const paypalUrl = `https://www.paypal.com/ncp/payment/LEWS26K7J8FAC?custom_id=${user.id}`
-    window.open(paypalUrl, '_blank')
-    setMessage('Complete your PayPal payment. Tokens will be credited automatically!')
-  }
-
-  const isAdmin = profile?.username === 'JPR333' || user?.email === 'jproney@gmail.com'
 
   // Render based on current view
-  if (user && showNotifications && isAdmin) {
+  if (user && currentView === 'add-friend') {
     return (
       <>
-        <NotificationsFeed
-          onBack={() => setShowNotifications(false)}
-          notifications={notifications}
-          onRefresh={() => loadNotifications()}
+        <AddFriend
+          onBack={() => setCurrentView('friends')}
+          onAddFriend={handleAddFriend}
+          message={message}
         />
         <FloatingGrailButton onGrailClick={() => setShowManifesto(true)} />
         {showManifesto && <ManifestoPopup onClose={() => setShowManifesto(false)} />}
@@ -525,35 +374,14 @@ function App() {
     )
   }
 
-  if (user && showSendForm) {
+  if (user && currentView === 'ofrenda') {
     return (
       <>
-        <SendForm
-          tokenType={showSendForm}
-          onBack={() => setShowSendForm(null)}
+        <OfrendaProfile
+          onBack={() => setCurrentView('friends')}
+          onSave={handleSaveOfrendaData}
+          initialData={ofrendaData}
           message={message}
-          transferData={transferData}
-          setTransferData={setTransferData}
-          isTransferring={isTransferring}
-          onSend={handleAdminTransfer}
-        />
-        <FloatingGrailButton onGrailClick={() => setShowManifesto(true)} />
-        {showManifesto && <ManifestoPopup onClose={() => setShowManifesto(false)} />}
-      </>
-    )
-  }
-
-  if (user && showReleaseForm) {
-    return (
-      <>
-        <ReleaseForm
-          tokenType={showReleaseForm}
-          onBack={() => setShowReleaseForm(null)}
-          message={message}
-          releaseData={releaseData}
-          setReleaseData={setReleaseData}
-          isReleasing={isReleasing}
-          onRelease={handleRelease}
         />
         <FloatingGrailButton onGrailClick={() => setShowManifesto(true)} />
         {showManifesto && <ManifestoPopup onClose={() => setShowManifesto(false)} />}
@@ -564,18 +392,18 @@ function App() {
   if (user) {
     return (
       <>
-        <Dashboard
+        <FriendsList
+          friends={friends}
           profile={profile}
           user={user}
-          isAdmin={isAdmin}
           showSettings={showSettings}
           setShowSettings={setShowSettings}
-          onShowNotifications={() => setShowNotifications(true)}
-          onWalletSave={handleWalletSave}
+          onAddFriend={() => setCurrentView('add-friend')}
+          onEditOfrenda={() => setCurrentView('ofrenda')}
+          onUpdateFriend={handleUpdateFriend}
+          onDeleteFriend={handleDeleteFriend}
           onLogout={handleLogout}
           message={message}
-          onShowSendForm={setShowSendForm}
-          onShowReleaseForm={setShowReleaseForm}
         />
         <FloatingGrailButton onGrailClick={() => setShowManifesto(true)} />
         {showManifesto && <ManifestoPopup onClose={() => setShowManifesto(false)} />}
