@@ -5,39 +5,32 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
   const [formData, setFormData] = useState({
     zodiac_sign: '',
     zodiac_sign_privacy: 'yellow',
-    zodiac_subsigns: [],
+    // Individual zodiac placement fields will be added dynamically
     myers_briggs: '',
     myers_briggs_privacy: 'yellow',
     human_design: '',
     human_design_privacy: 'yellow',
     enneagram: '',
     enneagram_privacy: 'yellow',
-    birthday: '',
-    birthday_privacy: 'yellow',
-    hometown: '',
-    hometown_privacy: 'yellow',
     custom_fields: []
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (initialData) {
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
+        ...initialData,
         zodiac_sign: initialData.zodiac_sign || '',
         zodiac_sign_privacy: initialData.zodiac_sign_privacy || 'yellow',
-        zodiac_subsigns: initialData.zodiac_subsigns || [],
         myers_briggs: initialData.myers_briggs || '',
         myers_briggs_privacy: initialData.myers_briggs_privacy || 'yellow',
         human_design: initialData.human_design || '',
         human_design_privacy: initialData.human_design_privacy || 'yellow',
         enneagram: initialData.enneagram || '',
         enneagram_privacy: initialData.enneagram_privacy || 'yellow',
-        birthday: initialData.birthday || '',
-        birthday_privacy: initialData.birthday_privacy || 'yellow',
-        hometown: initialData.hometown || '',
-        hometown_privacy: initialData.hometown_privacy || 'yellow',
         custom_fields: initialData.custom_fields || []
-      })
+      }))
     }
   }, [initialData])
 
@@ -86,35 +79,6 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
   const updateField = React.useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }, [])
-
-  const addZodiacSubsign = () => {
-    const newSubsign = {
-      id: Date.now(),
-      placement: '',
-      sign: '',
-      privacy: 'yellow'
-    }
-    setFormData(prev => ({
-      ...prev,
-      zodiac_subsigns: [...prev.zodiac_subsigns, newSubsign]
-    }))
-  }
-
-  const updateZodiacSubsign = (id, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      zodiac_subsigns: prev.zodiac_subsigns.map(subsign => 
-        subsign.id === id ? { ...subsign, [field]: value } : subsign
-      )
-    }))
-  }
-
-  const removeZodiacSubsign = (id) => {
-    setFormData(prev => ({
-      ...prev,
-      zodiac_subsigns: prev.zodiac_subsigns.filter(subsign => subsign.id !== id)
-    }))
-  }
 
   const addCustomField = () => {
     const newField = {
@@ -527,141 +491,121 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
               Additional Placements
             </h4>
             
-            {formData.zodiac_subsigns.map((subsign) => (
-              <div key={subsign.id} style={{
-                backgroundColor: '#f8f9fa',
-                border: '1px solid #e0e0e0',
-                borderRadius: '15px',
-                padding: '1rem',
-                marginBottom: '1rem'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '0.5rem', 
-                  marginBottom: '0.5rem',
-                  alignItems: 'center',
-                  flexWrap: 'wrap'
+            {/* Fixed placement fields */}
+            {zodiacPlacements.map((placement) => {
+              const fieldKey = `zodiac_${placement.toLowerCase().replace(/\s+/g, '_')}`
+              const privacyKey = `${fieldKey}_privacy`
+              const currentValue = formData[fieldKey] || ''
+              const currentPrivacy = formData[privacyKey] || 'yellow'
+              const privacyStyle = getPrivacyColor(currentPrivacy)
+              
+              return (
+                <div key={placement} style={{
+                  backgroundColor: currentValue ? '#f8f9fa' : '#fafafa',
+                  border: currentValue ? '2px solid #d2691e' : '1px solid #e0e0e0',
+                  borderRadius: '15px',
+                  padding: '1rem',
+                  marginBottom: '0.8rem',
+                  transition: 'all 0.2s'
                 }}>
-                  <select
-                    value={subsign.placement}
-                    onChange={(e) => updateZodiacSubsign(subsign.id, 'placement', e.target.value)}
-                    style={{
-                      flex: '1',
-                      minWidth: '120px',
-                      padding: '0.5rem',
-                      border: '1px solid #ccc',
-                      borderRadius: '8px',
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: '0.8rem',
+                    marginBottom: currentValue ? '0.5rem' : '0'
+                  }}>
+                    <label style={{
+                      minWidth: '100px',
+                      color: '#8b4513',
+                      fontWeight: '500',
                       fontSize: '0.9rem'
-                    }}
-                  >
-                    <option value="">Select placement</option>
-                    {zodiacPlacements.map(placement => (
-                      <option key={placement} value={placement}>{placement}</option>
-                    ))}
-                  </select>
+                    }}>
+                      {placement}
+                    </label>
+                    
+                    <span style={{ color: '#8b4513', fontSize: '0.9rem' }}>in</span>
+                    
+                    <select
+                      value={currentValue}
+                      onChange={(e) => {
+                        updateField(fieldKey, e.target.value)
+                        // Set default privacy when first selected
+                        if (e.target.value && !formData[privacyKey]) {
+                          updateField(privacyKey, 'yellow')
+                        }
+                      }}
+                      style={{
+                        flex: '1',
+                        padding: '0.6rem',
+                        border: '1px solid #ccc',
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                        backgroundColor: 'white'
+                      }}
+                    >
+                      <option value="">Not set</option>
+                      {allZodiacSigns.map(sign => (
+                        <option key={sign} value={sign}>{sign}</option>
+                      ))}
+                    </select>
+                    
+                    {currentValue && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        backgroundColor: privacyStyle.bg,
+                        border: `1px solid ${privacyStyle.border}`,
+                        borderRadius: '15px',
+                        padding: '0.2rem 0.6rem',
+                        fontSize: '0.7rem',
+                        color: privacyStyle.text
+                      }}>
+                        {getPrivacyIcon(currentPrivacy)}
+                        <span>{currentPrivacy.charAt(0).toUpperCase() + currentPrivacy.slice(1)}</span>
+                      </div>
+                    )}
+                  </div>
                   
-                  <span style={{ color: '#8b4513', fontWeight: '500' }}>in</span>
-                  
-                  <select
-                    value={subsign.sign}
-                    onChange={(e) => updateZodiacSubsign(subsign.id, 'sign', e.target.value)}
-                    style={{
-                      flex: '1',
-                      minWidth: '120px',
-                      padding: '0.5rem',
-                      border: '1px solid #ccc',
-                      borderRadius: '8px',
-                      fontSize: '0.9rem'
-                    }}
-                  >
-                    <option value="">Select sign</option>
-                    {allZodiacSigns.map(sign => (
-                      <option key={sign} value={sign}>{sign}</option>
-                    ))}
-                  </select>
-                  
-                  <button
-                    type="button"
-                    onClick={() => removeZodiacSubsign(subsign.id)}
-                    style={{
-                      padding: '0.5rem',
-                      backgroundColor: '#dc3545',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  {/* Privacy Controls - only show if value is selected */}
+                  {currentValue && (
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '0.5rem', 
+                      justifyContent: 'flex-end'
+                    }}>
+                      {['green', 'yellow', 'red'].map((level) => {
+                        const isSelected = currentPrivacy === level
+                        const style = getPrivacyColor(level)
+                        return (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => updateField(privacyKey, level)}
+                            style={{
+                              padding: '0.3rem 0.5rem',
+                              backgroundColor: isSelected ? style.bg : 'transparent',
+                              border: `1px solid ${style.border}`,
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '0.65rem',
+                              color: isSelected ? style.text : style.border,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.2rem',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {getPrivacyIcon(level)}
+                            {level.charAt(0).toUpperCase() + level.slice(1)}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-                
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '0.5rem', 
-                  justifyContent: 'flex-end'
-                }}>
-                  {['green', 'yellow', 'red'].map((level) => {
-                    const isSelected = subsign.privacy === level
-                    const style = getPrivacyColor(level)
-                    return (
-                      <button
-                        key={level}
-                        type="button"
-                        onClick={() => updateZodiacSubsign(subsign.id, 'privacy', level)}
-                        style={{
-                          padding: '0.4rem 0.6rem',
-                          backgroundColor: isSelected ? style.bg : 'transparent',
-                          border: `1px solid ${style.border}`,
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          fontSize: '0.7rem',
-                          color: isSelected ? style.text : style.border,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {getPrivacyIcon(level)}
-                        {level.charAt(0).toUpperCase() + level.slice(1)}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-            
-            <button
-              type="button"
-              onClick={addZodiacSubsign}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                backgroundColor: 'transparent',
-                border: '2px dashed #d2691e',
-                borderRadius: '15px',
-                cursor: 'pointer',
-                color: '#d2691e',
-                fontSize: '0.9rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.backgroundColor = '#fff3e0'
-              }}
-              onMouseOut={(e) => {
-                e.target.style.backgroundColor = 'transparent'
-              }}
-            >
-              <Plus size={16} />
-              Add Zodiac Placement
-            </button>
+              )
+            })}
           </div>
           
           <SelectInputWithPrivacy
@@ -684,16 +628,14 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
         </FormSection>
 
         <FormSection icon={MapPin} title="Background">
-          <TextInputWithPrivacy
-            label="Birthday"
-            field="birthday"
-            placeholder="e.g., June 15, 1990 or just June 15"
-          />
-          <TextInputWithPrivacy
-            label="Hometown"
-            field="hometown"
-            placeholder="Where did you grow up?"
-          />
+          <p style={{ 
+            color: '#8b4513', 
+            fontSize: '0.9rem', 
+            fontStyle: 'italic',
+            margin: '0'
+          }}>
+            Use custom fields below to add birthday, hometown, or other background info
+          </p>
         </FormSection>
 
         <FormSection icon={Star} title="Custom Fields">
