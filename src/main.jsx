@@ -18,7 +18,6 @@ function App() {
   // UI state
   const [activeTab, setActiveTab] = useState('login')
   const [currentView, setCurrentView] = useState('friends') // 'friends', 'add-friend', 'ofrenda'
-  const [showSettings, setShowSettings] = useState(false)
   const [showManifesto, setShowManifesto] = useState(false)
   
   // Form state
@@ -366,7 +365,6 @@ function App() {
     setFriends([])
     setOfrendaData(null)
     setCurrentView('friends')
-    setShowSettings(false)
     setShowManifesto(false)
     setMessage('')
     setFormData({ email: '', password: '', username: '', name: '' })
@@ -410,8 +408,6 @@ function App() {
           profile={profile}
           user={user}
           supabase={supabase}
-          showSettings={showSettings}
-          setShowSettings={setShowSettings}
           onAddFriend={() => setCurrentView('add-friend')}
           onEditOfrenda={() => setCurrentView('ofrenda')}
           onUpdateFriend={handleUpdateFriend}
