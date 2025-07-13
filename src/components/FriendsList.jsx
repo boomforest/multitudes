@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
 import { Users, Plus, Settings, LogOut, Edit3, Trash2, User } from 'lucide-react'
+import ProfilePicture from './ProfilePicture'
 
 function FriendsList({
   friends,
   profile,
   user,
+  supabase,
   showSettings,
   setShowSettings,
   onAddFriend,
@@ -12,6 +14,7 @@ function FriendsList({
   onUpdateFriend,
   onDeleteFriend,
   onLogout,
+  onProfileUpdate,
   message
 }) {
   const [editingFriend, setEditingFriend] = useState(null)
@@ -73,22 +76,32 @@ function FriendsList({
         alignItems: 'center',
         boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
       }}>
-        <div>
-          <h1 style={{
-            fontSize: '1.8rem',
-            fontWeight: 'bold',
-            margin: '0',
-            color: '#d2691e'
-          }}>
-            MULTITUDES
-          </h1>
-          <p style={{ 
-            color: '#8b4513', 
-            margin: '0.2rem 0 0 0',
-            fontSize: '0.9rem'
-          }}>
-            Welcome, {profile?.username || 'User'}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <ProfilePicture
+            supabase={supabase}
+            user={user}
+            profile={profile}
+            onProfileUpdate={onProfileUpdate}
+            size="medium"
+            showUpload={true}
+          />
+          <div>
+            <h1 style={{
+              fontSize: '1.8rem',
+              fontWeight: 'bold',
+              margin: '0',
+              color: '#d2691e'
+            }}>
+              MULTITUDES
+            </h1>
+            <p style={{ 
+              color: '#8b4513', 
+              margin: '0.2rem 0 0 0',
+              fontSize: '0.9rem'
+            }}>
+              Welcome, {profile?.username || 'User'}
+            </p>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
