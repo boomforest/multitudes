@@ -7,8 +7,6 @@ function FriendsList({
   profile,
   user,
   supabase,
-  showSettings,
-  setShowSettings,
   onAddFriend,
   onEditOfrenda,
   onUpdateFriend,
@@ -103,73 +101,54 @@ function FriendsList({
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+      </div>
+
+      {/* Settings Section - Always Visible */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: '20px',
+        padding: '1.5rem',
+        marginBottom: '1rem',
+        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
+      }}>
+        <h3 style={{ margin: '0 0 1rem 0', color: '#8b4513' }}>Quick Actions</h3>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <button
-            onClick={() => setShowSettings(!showSettings)}
+            onClick={onEditOfrenda}
             style={{
-              padding: '0.8rem',
-              backgroundColor: '#f0f0f0',
+              padding: '0.8rem 1.2rem',
+              backgroundColor: '#d2691e',
+              color: 'white',
               border: 'none',
               borderRadius: '12px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              color: '#8b4513'
+              gap: '0.5rem'
             }}
           >
-            <Settings size={18} />
+            <User size={16} />
+            Edit Ofrenda Profile
+          </button>
+          <button
+            onClick={onLogout}
+            style={{
+              padding: '0.8rem 1.2rem',
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <LogOut size={16} />
+            Logout
           </button>
         </div>
       </div>
-
-      {/* Settings Panel */}
-      {showSettings && (
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          borderRadius: '20px',
-          padding: '1.5rem',
-          marginBottom: '1rem',
-          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{ margin: '0 0 1rem 0', color: '#8b4513' }}>Settings</h3>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <button
-              onClick={onEditOfrenda}
-              style={{
-                padding: '0.8rem 1.2rem',
-                backgroundColor: '#d2691e',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <User size={16} />
-              Edit Ofrenda Profile
-            </button>
-            <button
-              onClick={onLogout}
-              style={{
-                padding: '0.8rem 1.2rem',
-                backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <LogOut size={16} />
-              Logout
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Message */}
       {message && (
