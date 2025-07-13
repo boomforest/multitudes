@@ -195,7 +195,7 @@ function FriendsList({
             }}>
               {colorCounts.green}
             </div>
-            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#155724' }}>Green</p>
+            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#155724' }}>Acquaintances</p>
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{
@@ -208,7 +208,7 @@ function FriendsList({
             }}>
               {colorCounts.yellow}
             </div>
-            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#856404' }}>Yellow</p>
+            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#856404' }}>Friends</p>
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{
@@ -221,7 +221,7 @@ function FriendsList({
             }}>
               {colorCounts.red}
             </div>
-            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#721c24' }}>Red</p>
+            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#721c24' }}>Deep Connections</p>
           </div>
         </div>
       </div>
