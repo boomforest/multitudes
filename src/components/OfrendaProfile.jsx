@@ -1,12 +1,164 @@
-import React, { useState, useEffect } from 'react'
+placeholder="Select your main sign"
+          />
+          
+          {/* Zodiac Sub-signs */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              color: '#8b4513', 
+              fontSize: '1rem', 
+              margin: '0 0 1rem 0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <Star size={16} />
+              Additional Placements
+            </h4>
+            
+            {formData.zodiac_subsigns.map((subsign) => (
+              <div key={subsign.id} style={{
+                backgroundColor: '#f8f9fa',
+                border: '1px solid #e0e0e0',
+                borderRadius: '15px',
+                padding: '1rem',
+                marginBottom: '1rem'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '0.5rem', 
+                  marginBottom: '0.5rem',
+                  alignItems: 'center',
+                  flexWrap: 'wrap'
+                }}>
+                  <select
+                    value={subsign.placement}
+                    onChange={(e) => updateZodiacSubsign(subsign.id, 'placement', e.target.value)}
+                    style={{
+                      flex: '1',
+                      minWidth: '120px',
+                      padding: '0.5rem',
+                      border: '1px solid #ccc',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    <option value="">Select placement</option>
+                    {zodiacPlacements.map(placement => (
+                      <option key={placement} value={placement}>{placement}</option>
+                    ))}
+                  </select>
+                  
+                  <span style={{ color: '#8b4513', fontWeight: '500' }}>in</span>
+                  
+                  <select
+                    value={subsign.sign}
+                    onChange={(e) => updateZodiacSubsign(subsign.id, 'sign', e.target.value)}
+                    style={{
+                      flex: '1',
+                      minWidth: '120px',
+                      padding: '0.5rem',
+                      border: '1px solid #ccc',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    <option value="">Select sign</option>
+                    {allZodiacSigns.map(sign => (
+                      <option key={sign} value={sign}>{sign}</option>
+                    ))}
+                  </select>
+                  
+                  <button
+                    type="button"
+                    onClick={() => removeZodiacSubsign(subsign.id)}
+                    style={{
+                      padding: '0.5rem',
+                      backgroundColor: '#dc3545',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                
+                {/* Privacy Controls for Zodiac Subsign */}
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '0.5rem', 
+                  justifyContent: 'flex-end'
+                }}>
+                  {['green', 'yellow', 'red'].map((level) => {
+                    const isSelected = subsign.privacy === level
+                    const style = getPrivacyColor(level)
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => updateZodiacSubsign(subsign.id, 'privacy', level)}
+                        style={{
+                          padding: '0.4rem 0.6rem',
+                          backgroundColor: isSelected ? style.bg : 'transparent',
+                          border: `1px solid ${style.border}`,
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '0.7rem',
+                          color: isSelected ? style.text : style.border,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {getPrivacyIcon(level)}
+                        {level.charAt(0).toUpperCase() + level.slice(1)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+            
+            <button
+              type="button"
+              onClick={addZodiacSubsign}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                backgroundColor: 'transparent',
+                border: '2px dashed #d2691e',
+                borderRadius: '15px',
+                cursor: 'pointer',
+                color: '#d2691e',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.backgroundColor = '#fff3e0'
+              }}
+              onMouseOut={(e) => {
+                e.target.style.backgroundColor = 'transparent'
+              }}
+            >
+              <Plus size={16} />
+              Add Zodiac Placement
+            </button>
+          </div>import React, { useState, useEffect } from 'react'
 import { ArrowLeft, User, Star, Brain, Calendar, MapPin, Plus, Trash2, Save, Eye, EyeOff, Lock } from 'lucide-react'
 
 function OfrendaProfile({ onBack, onSave, initialData, message }) {
   const [formData, setFormData] = useState({
     zodiac_sign: '',
     zodiac_sign_privacy: 'yellow',
-    zodiac_details: '',
-    zodiac_details_privacy: 'yellow',
+    zodiac_subsigns: [],
     myers_briggs: '',
     myers_briggs_privacy: 'yellow',
     human_design: '',
@@ -26,8 +178,7 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
       setFormData({
         zodiac_sign: initialData.zodiac_sign || '',
         zodiac_sign_privacy: initialData.zodiac_sign_privacy || 'yellow',
-        zodiac_details: initialData.zodiac_details || '',
-        zodiac_details_privacy: initialData.zodiac_details_privacy || 'yellow',
+        zodiac_subsigns: initialData.zodiac_subsigns || [],
         myers_briggs: initialData.myers_briggs || '',
         myers_briggs_privacy: initialData.myers_briggs_privacy || 'yellow',
         human_design: initialData.human_design || '',
@@ -58,24 +209,20 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
 
   const zodiacSigns = [
     'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
-    'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
+    'Libra', 'Scorpio', 'Scorpio/Ophiuchus', 'Ophiuchus', 'Sagittarius/Ophiuchus', 'Sagittarius', 
+    'Capricorn', 'Aquarius', 'Pisces'
   ]
 
-  const subZodiacSigns = [
-    'Sun in Aries', 'Sun in Taurus', 'Sun in Gemini', 'Sun in Cancer', 'Sun in Leo', 'Sun in Virgo',
-    'Sun in Libra', 'Sun in Scorpio', 'Sun in Sagittarius', 'Sun in Capricorn', 'Sun in Aquarius', 'Sun in Pisces',
-    'Moon in Aries', 'Moon in Taurus', 'Moon in Gemini', 'Moon in Cancer', 'Moon in Leo', 'Moon in Virgo',
-    'Moon in Libra', 'Moon in Scorpio', 'Moon in Sagittarius', 'Moon in Capricorn', 'Moon in Aquarius', 'Moon in Pisces',
-    'Rising in Aries', 'Rising in Taurus', 'Rising in Gemini', 'Rising in Cancer', 'Rising in Leo', 'Rising in Virgo',
-    'Rising in Libra', 'Rising in Scorpio', 'Rising in Sagittarius', 'Rising in Capricorn', 'Rising in Aquarius', 'Rising in Pisces',
-    'Venus in Aries', 'Venus in Taurus', 'Venus in Gemini', 'Venus in Cancer', 'Venus in Leo', 'Venus in Virgo',
-    'Venus in Libra', 'Venus in Scorpio', 'Venus in Sagittarius', 'Venus in Capricorn', 'Venus in Aquarius', 'Venus in Pisces',
-    'Mars in Aries', 'Mars in Taurus', 'Mars in Gemini', 'Mars in Cancer', 'Mars in Leo', 'Mars in Virgo',
-    'Mars in Libra', 'Mars in Scorpio', 'Mars in Sagittarius', 'Mars in Capricorn', 'Mars in Aquarius', 'Mars in Pisces',
-    'Mercury in Aries', 'Mercury in Taurus', 'Mercury in Gemini', 'Mercury in Cancer', 'Mercury in Leo', 'Mercury in Virgo',
-    'Mercury in Libra', 'Mercury in Scorpio', 'Mercury in Sagittarius', 'Mercury in Capricorn', 'Mercury in Aquarius', 'Mercury in Pisces',
-    'Jupiter in Aries', 'Jupiter in Taurus', 'Jupiter in Gemini', 'Jupiter in Cancer', 'Jupiter in Leo', 'Jupiter in Virgo',
-    'Jupiter in Libra', 'Jupiter in Scorpio', 'Jupiter in Sagittarius', 'Jupiter in Capricorn', 'Jupiter in Aquarius', 'Jupiter in Pisces'
+  const zodiacPlacements = [
+    'Sun', 'Moon', 'Rising', 'Mercury', 'Venus', 'Mars', 
+    'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'North Node', 'South Node',
+    'Midheaven', 'IC', 'Descendant', 'Chiron', 'Lilith'
+  ]
+
+  const allZodiacSigns = [
+    'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+    'Libra', 'Scorpio', 'Scorpio/Ophiuchus', 'Ophiuchus', 'Sagittarius/Ophiuchus', 'Sagittarius', 
+    'Capricorn', 'Aquarius', 'Pisces'
   ]
 
   const myersBriggsTypes = [
@@ -91,6 +238,35 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const addZodiacSubsign = () => {
+    const newSubsign = {
+      id: Date.now(),
+      placement: '',
+      sign: '',
+      privacy: 'yellow'
+    }
+    setFormData(prev => ({
+      ...prev,
+      zodiac_subsigns: [...prev.zodiac_subsigns, newSubsign]
+    }))
+  }
+
+  const updateZodiacSubsign = (id, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      zodiac_subsigns: prev.zodiac_subsigns.map(subsign => 
+        subsign.id === id ? { ...subsign, [field]: value } : subsign
+      )
+    }))
+  }
+
+  const removeZodiacSubsign = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      zodiac_subsigns: prev.zodiac_subsigns.filter(subsign => subsign.id !== id)
+    }))
   }
 
   const addCustomField = () => {
@@ -112,13 +288,6 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
       custom_fields: prev.custom_fields.map(cf => 
         cf.id === id ? { ...cf, [field]: value } : cf
       )
-    }))
-  }
-
-  const removeCustomField = (id) => {
-    setFormData(prev => ({
-      ...prev,
-      custom_fields: prev.custom_fields.filter(cf => cf.id !== id)
     }))
   }
 
@@ -172,26 +341,31 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
     </div>
   )
 
-  const TextInputWithPrivacy = ({ label, field, placeholder, multiline = false }) => {
+  const TextInputWithPrivacy = React.memo(({ label, field, placeholder, multiline = false }) => {
     const privacyField = `${field}_privacy`
     const privacyLevel = formData[privacyField]
     const privacyStyle = getPrivacyColor(privacyLevel)
     
-    const handleInputChange = (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      updateField(field, e.target.value)
-    }
+    const [localValue, setLocalValue] = React.useState(formData[field] || '')
     
-    const handleFocus = (e) => {
-      e.target.style.borderColor = '#d2691e'
-      // Prevent page scroll
-      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
+    React.useEffect(() => {
+      setLocalValue(formData[field] || '')
+    }, [formData[field]])
     
-    const handleBlur = (e) => {
-      e.target.style.borderColor = '#e0e0e0'
-    }
+    const handleInputChange = React.useCallback((e) => {
+      const newValue = e.target.value
+      setLocalValue(newValue)
+      // Debounce the update to formData
+      const timeoutId = setTimeout(() => {
+        updateField(field, newValue)
+      }, 100)
+      
+      return () => clearTimeout(timeoutId)
+    }, [field])
+    
+    const handleBlur = React.useCallback(() => {
+      updateField(field, localValue)
+    }, [field, localValue])
     
     return (
       <div style={{ marginBottom: '1.5rem' }}>
@@ -226,10 +400,8 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
         
         {multiline ? (
           <textarea
-            key={`${field}-textarea`}
-            value={formData[field] || ''}
+            value={localValue}
             onChange={handleInputChange}
-            onFocus={handleFocus}
             onBlur={handleBlur}
             placeholder={placeholder}
             rows={3}
@@ -245,14 +417,13 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
               fontFamily: 'inherit',
               transition: 'border-color 0.2s'
             }}
+            onFocus={(e) => e.target.style.borderColor = '#d2691e'}
           />
         ) : (
           <input
-            key={`${field}-input`}
             type="text"
-            value={formData[field] || ''}
+            value={localValue}
             onChange={handleInputChange}
-            onFocus={handleFocus}
             onBlur={handleBlur}
             placeholder={placeholder}
             style={{
@@ -265,6 +436,7 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
               boxSizing: 'border-box',
               transition: 'border-color 0.2s'
             }}
+            onFocus={(e) => e.target.style.borderColor = '#d2691e'}
           />
         )}
         
@@ -305,7 +477,7 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
         </div>
       </div>
     )
-  }
+  })
 
   const SelectInputWithPrivacy = ({ label, field, options, placeholder }) => {
     const privacyField = `${field}_privacy`
@@ -509,58 +681,12 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
             label="Zodiac Sign"
             field="zodiac_sign"
             options={zodiacSigns}
-            placeholder="Select your sign"
-          />
-          <TextInputWithPrivacy
-            label="Zodiac Details (Multi-select or free text)"
-            field="zodiac_details"
-            placeholder="e.g., Leo sun, Virgo rising, Cancer moon"
-          />
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              color: '#8b4513',
-              fontWeight: '500',
-              fontSize: '0.9rem'
-            }}>
-              Or select from dropdown:
-            </label>
-            <select
-              multiple
-              value={formData.zodiac_details ? formData.zodiac_details.split(', ') : []}
-              onChange={(e) => {
-                const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
-                updateField('zodiac_details', selectedOptions.join(', '))
-              }}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                border: '2px solid #e0e0e0',
-                borderRadius: '15px',
-                fontSize: '0.9rem',
-                outline: 'none',
-                boxSizing: 'border-box',
-                backgroundColor: 'white',
-                minHeight: '120px',
-                transition: 'border-color 0.2s'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#d2691e'}
-              onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-            >
-              {subZodiacSigns.map(sign => (
-                <option key={sign} value={sign}>{sign}</option>
-              ))}
-            </select>
-            <p style={{ 
-              fontSize: '0.75rem', 
-              color: '#666', 
-              margin: '0.5rem 0 0 0',
-              fontStyle: 'italic'
-            }}>
-              Hold Ctrl/Cmd to select multiple signs
-            </p>
-          </div>
+  const removeCustomField = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      custom_fields: prev.custom_fields.filter(cf => cf.id !== id)
+    }))
+  }
           <SelectInputWithPrivacy
             label="Myers-Briggs Type"
             field="myers_briggs"
