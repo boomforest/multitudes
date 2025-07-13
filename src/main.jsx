@@ -213,14 +213,26 @@ function App() {
     if (!supabase || !user) return
 
     try {
+      // Check if record exists
+      const { data: existingData, error: fetchError } = await supabase
+        .from('ofrenda_data')
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        // PGRST116 means no rows found, which is fine
+        throw fetchError
+      }
+
       const ofrendaRecord = {
         user_id: user.id,
         ...data
       }
 
       let result
-      if (ofrendaData) {
-        // Update existing
+      if (existingData) {
+        // Update existing record
         result = await supabase
           .from('ofrenda_data')
           .update(ofrendaRecord)
@@ -228,7 +240,7 @@ function App() {
           .select()
           .single()
       } else {
-        // Create new
+        // Create new record
         result = await supabase
           .from('ofrenda_data')
           .insert([ofrendaRecord])
@@ -242,6 +254,7 @@ function App() {
       setMessage('Ofrenda data saved!')
       setCurrentView('friends')
     } catch (error) {
+      console.error('Error saving ofrenda data:', error)
       setMessage('Error saving ofrenda data: ' + error.message)
     }
   }
