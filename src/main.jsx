@@ -396,6 +396,7 @@ function App() {
           friends={friends}
           profile={profile}
           user={user}
+          supabase={supabase}
           showSettings={showSettings}
           setShowSettings={setShowSettings}
           onAddFriend={() => setCurrentView('add-friend')}
@@ -403,6 +404,7 @@ function App() {
           onUpdateFriend={handleUpdateFriend}
           onDeleteFriend={handleDeleteFriend}
           onLogout={handleLogout}
+          onProfileUpdate={setProfile}
           message={message}
         />
         <FloatingGrailButton onGrailClick={() => setShowManifesto(true)} />
