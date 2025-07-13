@@ -1,5 +1,5 @@
 import React from 'react'
-import { WalletInput } from './WalletInput'
+import WalletInput from './WalletInput'
 
 const formatNumber = (num) => {
   return new Intl.NumberFormat().format(num || 0)
