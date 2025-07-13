@@ -83,9 +83,9 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
     '7 - The Enthusiast', '8 - The Challenger', '9 - The Peacemaker'
   ]
 
-  const updateField = (field, value) => {
+  const updateField = React.useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-  }
+  }, [])
 
   const addZodiacSubsign = () => {
     const newSubsign = {
@@ -195,18 +195,10 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
     </div>
   )
 
-  const TextInputWithPrivacy = ({ label, field, placeholder, multiline = false }) => {
+  const TextInputWithPrivacy = React.memo(({ label, field, placeholder, multiline = false }) => {
     const privacyField = `${field}_privacy`
     const privacyLevel = formData[privacyField] || 'yellow'
     const privacyStyle = getPrivacyColor(privacyLevel)
-    
-    // Use a ref to avoid re-renders affecting the input
-    const inputRef = React.useRef(null)
-    
-    const handleChange = (e) => {
-      const newValue = e.target.value
-      updateField(field, newValue)
-    }
     
     return (
       <div style={{ marginBottom: '1.5rem' }}>
@@ -241,9 +233,9 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
         
         {multiline ? (
           <textarea
-            ref={inputRef}
-            value={formData[field] || ''}
-            onChange={handleChange}
+            key={`textarea-${field}`}
+            defaultValue={formData[field] || ''}
+            onChange={(e) => updateField(field, e.target.value)}
             placeholder={placeholder}
             rows={3}
             style={{
@@ -263,10 +255,10 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
           />
         ) : (
           <input
-            ref={inputRef}
+            key={`input-${field}`}
             type="text"
-            value={formData[field] || ''}
-            onChange={handleChange}
+            defaultValue={formData[field] || ''}
+            onChange={(e) => updateField(field, e.target.value)}
             placeholder={placeholder}
             autoComplete="off"
             style={{
@@ -320,7 +312,7 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
         </div>
       </div>
     )
-  }
+  })
 
   const SelectInputWithPrivacy = ({ label, field, options, placeholder }) => {
     const privacyField = `${field}_privacy`
