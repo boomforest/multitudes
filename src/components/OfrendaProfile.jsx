@@ -195,30 +195,18 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
     </div>
   )
 
-  const TextInputWithPrivacy = React.memo(({ label, field, placeholder, multiline = false }) => {
+  const TextInputWithPrivacy = ({ label, field, placeholder, multiline = false }) => {
     const privacyField = `${field}_privacy`
-    const privacyLevel = formData[privacyField]
+    const privacyLevel = formData[privacyField] || 'yellow'
     const privacyStyle = getPrivacyColor(privacyLevel)
     
-    const [localValue, setLocalValue] = React.useState(formData[field] || '')
+    // Use a ref to avoid re-renders affecting the input
+    const inputRef = React.useRef(null)
     
-    React.useEffect(() => {
-      setLocalValue(formData[field] || '')
-    }, [formData[field]])
-    
-    const handleInputChange = React.useCallback((e) => {
+    const handleChange = (e) => {
       const newValue = e.target.value
-      setLocalValue(newValue)
-      const timeoutId = setTimeout(() => {
-        updateField(field, newValue)
-      }, 100)
-      
-      return () => clearTimeout(timeoutId)
-    }, [field])
-    
-    const handleBlur = React.useCallback(() => {
-      updateField(field, localValue)
-    }, [field, localValue])
+      updateField(field, newValue)
+    }
     
     return (
       <div style={{ marginBottom: '1.5rem' }}>
@@ -253,9 +241,9 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
         
         {multiline ? (
           <textarea
-            value={localValue}
-            onChange={handleInputChange}
-            onBlur={handleBlur}
+            ref={inputRef}
+            value={formData[field] || ''}
+            onChange={handleChange}
             placeholder={placeholder}
             rows={3}
             style={{
@@ -271,14 +259,16 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
               transition: 'border-color 0.2s'
             }}
             onFocus={(e) => e.target.style.borderColor = '#d2691e'}
+            onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
           />
         ) : (
           <input
+            ref={inputRef}
             type="text"
-            value={localValue}
-            onChange={handleInputChange}
-            onBlur={handleBlur}
+            value={formData[field] || ''}
+            onChange={handleChange}
             placeholder={placeholder}
+            autoComplete="off"
             style={{
               width: '100%',
               padding: '1rem',
@@ -290,6 +280,7 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
               transition: 'border-color 0.2s'
             }}
             onFocus={(e) => e.target.style.borderColor = '#d2691e'}
+            onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
           />
         )}
         
@@ -329,7 +320,7 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
         </div>
       </div>
     )
-  })
+  }
 
   const SelectInputWithPrivacy = ({ label, field, options, placeholder }) => {
     const privacyField = `${field}_privacy`
