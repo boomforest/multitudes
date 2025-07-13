@@ -36,9 +36,9 @@ function LoginForm({
           margin: '0 0 0.5rem 0',
           color: '#d2691e'
         }}>
-          GRAIL
+          MULTITUDES
         </h1>
-        <p style={{ color: '#8b4513', margin: '0 0 2rem 0' }}>Token Exchange</p>
+        <p style={{ color: '#8b4513', margin: '0 0 2rem 0' }}>Friend Management</p>
 
         <div style={{ display: 'flex', marginBottom: '1.5rem', borderRadius: '20px', overflow: 'hidden' }}>
           <button
