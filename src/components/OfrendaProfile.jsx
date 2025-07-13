@@ -61,6 +61,23 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
     'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
   ]
 
+  const subZodiacSigns = [
+    'Sun in Aries', 'Sun in Taurus', 'Sun in Gemini', 'Sun in Cancer', 'Sun in Leo', 'Sun in Virgo',
+    'Sun in Libra', 'Sun in Scorpio', 'Sun in Sagittarius', 'Sun in Capricorn', 'Sun in Aquarius', 'Sun in Pisces',
+    'Moon in Aries', 'Moon in Taurus', 'Moon in Gemini', 'Moon in Cancer', 'Moon in Leo', 'Moon in Virgo',
+    'Moon in Libra', 'Moon in Scorpio', 'Moon in Sagittarius', 'Moon in Capricorn', 'Moon in Aquarius', 'Moon in Pisces',
+    'Rising in Aries', 'Rising in Taurus', 'Rising in Gemini', 'Rising in Cancer', 'Rising in Leo', 'Rising in Virgo',
+    'Rising in Libra', 'Rising in Scorpio', 'Rising in Sagittarius', 'Rising in Capricorn', 'Rising in Aquarius', 'Rising in Pisces',
+    'Venus in Aries', 'Venus in Taurus', 'Venus in Gemini', 'Venus in Cancer', 'Venus in Leo', 'Venus in Virgo',
+    'Venus in Libra', 'Venus in Scorpio', 'Venus in Sagittarius', 'Venus in Capricorn', 'Venus in Aquarius', 'Venus in Pisces',
+    'Mars in Aries', 'Mars in Taurus', 'Mars in Gemini', 'Mars in Cancer', 'Mars in Leo', 'Mars in Virgo',
+    'Mars in Libra', 'Mars in Scorpio', 'Mars in Sagittarius', 'Mars in Capricorn', 'Mars in Aquarius', 'Mars in Pisces',
+    'Mercury in Aries', 'Mercury in Taurus', 'Mercury in Gemini', 'Mercury in Cancer', 'Mercury in Leo', 'Mercury in Virgo',
+    'Mercury in Libra', 'Mercury in Scorpio', 'Mercury in Sagittarius', 'Mercury in Capricorn', 'Mercury in Aquarius', 'Mercury in Pisces',
+    'Jupiter in Aries', 'Jupiter in Taurus', 'Jupiter in Gemini', 'Jupiter in Cancer', 'Jupiter in Leo', 'Jupiter in Virgo',
+    'Jupiter in Libra', 'Jupiter in Scorpio', 'Jupiter in Sagittarius', 'Jupiter in Capricorn', 'Jupiter in Aquarius', 'Jupiter in Pisces'
+  ]
+
   const myersBriggsTypes = [
     'INTJ', 'INTP', 'ENTJ', 'ENTP', 'INFJ', 'INFP', 'ENFJ', 'ENFP',
     'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ', 'ISTP', 'ISFP', 'ESTP', 'ESFP'
@@ -160,6 +177,22 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
     const privacyLevel = formData[privacyField]
     const privacyStyle = getPrivacyColor(privacyLevel)
     
+    const handleInputChange = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      updateField(field, e.target.value)
+    }
+    
+    const handleFocus = (e) => {
+      e.target.style.borderColor = '#d2691e'
+      // Prevent page scroll
+      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+    
+    const handleBlur = (e) => {
+      e.target.style.borderColor = '#e0e0e0'
+    }
+    
     return (
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ 
@@ -193,9 +226,11 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
         
         {multiline ? (
           <textarea
-            key={field}
+            key={`${field}-textarea`}
             value={formData[field] || ''}
-            onChange={(e) => updateField(field, e.target.value)}
+            onChange={handleInputChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             placeholder={placeholder}
             rows={3}
             style={{
@@ -210,15 +245,15 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
               fontFamily: 'inherit',
               transition: 'border-color 0.2s'
             }}
-            onFocus={(e) => e.target.style.borderColor = '#d2691e'}
-            onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
           />
         ) : (
           <input
-            key={field}
+            key={`${field}-input`}
             type="text"
             value={formData[field] || ''}
-            onChange={(e) => updateField(field, e.target.value)}
+            onChange={handleInputChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             placeholder={placeholder}
             style={{
               width: '100%',
@@ -230,8 +265,6 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
               boxSizing: 'border-box',
               transition: 'border-color 0.2s'
             }}
-            onFocus={(e) => e.target.style.borderColor = '#d2691e'}
-            onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
           />
         )}
         
@@ -479,10 +512,55 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
             placeholder="Select your sign"
           />
           <TextInputWithPrivacy
-            label="Zodiac Details (Rising, Moon, etc.)"
+            label="Zodiac Details (Multi-select or free text)"
             field="zodiac_details"
             placeholder="e.g., Leo sun, Virgo rising, Cancer moon"
           />
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              color: '#8b4513',
+              fontWeight: '500',
+              fontSize: '0.9rem'
+            }}>
+              Or select from dropdown:
+            </label>
+            <select
+              multiple
+              value={formData.zodiac_details ? formData.zodiac_details.split(', ') : []}
+              onChange={(e) => {
+                const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
+                updateField('zodiac_details', selectedOptions.join(', '))
+              }}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                border: '2px solid #e0e0e0',
+                borderRadius: '15px',
+                fontSize: '0.9rem',
+                outline: 'none',
+                boxSizing: 'border-box',
+                backgroundColor: 'white',
+                minHeight: '120px',
+                transition: 'border-color 0.2s'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#d2691e'}
+              onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+            >
+              {subZodiacSigns.map(sign => (
+                <option key={sign} value={sign}>{sign}</option>
+              ))}
+            </select>
+            <p style={{ 
+              fontSize: '0.75rem', 
+              color: '#666', 
+              margin: '0.5rem 0 0 0',
+              fontStyle: 'italic'
+            }}>
+              Hold Ctrl/Cmd to select multiple signs
+            </p>
+          </div>
           <SelectInputWithPrivacy
             label="Myers-Briggs Type"
             field="myers_briggs"
