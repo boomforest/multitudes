@@ -184,10 +184,7 @@ function AddFriend({ onBack, onAddFriend, message }) {
               marginBottom: '0.8rem',
               color: '#8b4513',
               fontWeight: '500',
-              fontSize: '0.9rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
+              fontSize: '0.9rem'
             }}>
               <Palette size={16} />
               Relationship Color *
