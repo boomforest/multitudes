@@ -1,7 +1,9 @@
-placeholder="Select your main sign"
+<SelectInputWithPrivacy
+            label="Zodiac Sign"
+            field="zodiac_sign"
+            options={zodiacSigns}
+            placeholder="Select your main sign"
           />
-          
-          {/* Zodiac Sub-signs */}
           <div style={{ marginBottom: '1.5rem' }}>
             <h4 style={{ 
               color: '#8b4513', 
