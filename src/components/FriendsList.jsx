@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Users, Plus, Settings, LogOut, Edit3, Trash2, User } from 'lucide-react'
+import { Users, Plus, Settings, LogOut, Edit3, Trash2, User, Eye } from 'lucide-react'
 import ProfilePicture from './ProfilePicture'
 
 function FriendsList({
@@ -11,6 +11,7 @@ function FriendsList({
   onEditOfrenda,
   onUpdateFriend,
   onDeleteFriend,
+  onViewFriend,
   onLogout,
   onProfileUpdate,
   message
@@ -394,6 +395,20 @@ function FriendsList({
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: '0.3rem' }}>
+                          <button
+                            onClick={() => onViewFriend && onViewFriend(friend)}
+                            style={{
+                              padding: '0.4rem',
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              color: colorStyle.text
+                            }}
+                            title="View profile"
+                          >
+                            <Eye size={14} />
+                          </button>
                           <button
                             onClick={() => startEditing(friend)}
                             style={{
