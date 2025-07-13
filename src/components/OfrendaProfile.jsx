@@ -1,60 +1,44 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowLeft, User, Star, Brain, Heart, Calendar, MapPin, Coffee, Save, Eye, EyeOff, Lock } from 'lucide-react'
+import { ArrowLeft, User, Star, Brain, Calendar, MapPin, Plus, Trash2, Save, Eye, EyeOff, Lock } from 'lucide-react'
 
 function OfrendaProfile({ onBack, onSave, initialData, message }) {
   const [formData, setFormData] = useState({
-    astro_sign: '',
-    astro_sign_privacy: 'yellow',
+    zodiac_sign: '',
+    zodiac_sign_privacy: 'yellow',
+    zodiac_details: '',
+    zodiac_details_privacy: 'yellow',
     myers_briggs: '',
     myers_briggs_privacy: 'yellow',
-    love_language: '',
-    love_language_privacy: 'yellow',
-    birth_month: '',
-    birth_month_privacy: 'yellow',
+    human_design: '',
+    human_design_privacy: 'yellow',
+    enneagram: '',
+    enneagram_privacy: 'yellow',
+    birthday: '',
+    birthday_privacy: 'yellow',
     hometown: '',
     hometown_privacy: 'yellow',
-    favorite_drink: '',
-    favorite_drink_privacy: 'yellow',
-    life_motto: '',
-    life_motto_privacy: 'yellow',
-    biggest_fear: '',
-    biggest_fear_privacy: 'yellow',
-    proudest_moment: '',
-    proudest_moment_privacy: 'yellow',
-    comfort_food: '',
-    comfort_food_privacy: 'yellow',
-    ideal_weekend: '',
-    ideal_weekend_privacy: 'yellow',
-    photos: []
+    custom_fields: []
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (initialData) {
       setFormData({
-        astro_sign: initialData.astro_sign || '',
-        astro_sign_privacy: initialData.astro_sign_privacy || 'yellow',
+        zodiac_sign: initialData.zodiac_sign || '',
+        zodiac_sign_privacy: initialData.zodiac_sign_privacy || 'yellow',
+        zodiac_details: initialData.zodiac_details || '',
+        zodiac_details_privacy: initialData.zodiac_details_privacy || 'yellow',
         myers_briggs: initialData.myers_briggs || '',
         myers_briggs_privacy: initialData.myers_briggs_privacy || 'yellow',
-        love_language: initialData.love_language || '',
-        love_language_privacy: initialData.love_language_privacy || 'yellow',
-        birth_month: initialData.birth_month || '',
-        birth_month_privacy: initialData.birth_month_privacy || 'yellow',
+        human_design: initialData.human_design || '',
+        human_design_privacy: initialData.human_design_privacy || 'yellow',
+        enneagram: initialData.enneagram || '',
+        enneagram_privacy: initialData.enneagram_privacy || 'yellow',
+        birthday: initialData.birthday || '',
+        birthday_privacy: initialData.birthday_privacy || 'yellow',
         hometown: initialData.hometown || '',
         hometown_privacy: initialData.hometown_privacy || 'yellow',
-        favorite_drink: initialData.favorite_drink || '',
-        favorite_drink_privacy: initialData.favorite_drink_privacy || 'yellow',
-        life_motto: initialData.life_motto || '',
-        life_motto_privacy: initialData.life_motto_privacy || 'yellow',
-        biggest_fear: initialData.biggest_fear || '',
-        biggest_fear_privacy: initialData.biggest_fear_privacy || 'yellow',
-        proudest_moment: initialData.proudest_moment || '',
-        proudest_moment_privacy: initialData.proudest_moment_privacy || 'yellow',
-        comfort_food: initialData.comfort_food || '',
-        comfort_food_privacy: initialData.comfort_food_privacy || 'yellow',
-        ideal_weekend: initialData.ideal_weekend || '',
-        ideal_weekend_privacy: initialData.ideal_weekend_privacy || 'yellow',
-        photos: initialData.photos || []
+        custom_fields: initialData.custom_fields || []
       })
     }
   }, [initialData])
@@ -72,7 +56,7 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
     }
   }
 
-  const astroSigns = [
+  const zodiacSigns = [
     'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
     'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
   ]
@@ -82,18 +66,43 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
     'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ', 'ISTP', 'ISFP', 'ESTP', 'ESFP'
   ]
 
-  const loveLanguages = [
-    'Words of Affirmation', 'Acts of Service', 'Receiving Gifts', 
-    'Quality Time', 'Physical Touch'
-  ]
-
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+  const enneagramTypes = [
+    '1 - The Perfectionist', '2 - The Helper', '3 - The Achiever',
+    '4 - The Individualist', '5 - The Investigator', '6 - The Loyalist',
+    '7 - The Enthusiast', '8 - The Challenger', '9 - The Peacemaker'
   ]
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const addCustomField = () => {
+    const newField = {
+      id: Date.now(),
+      label: '',
+      value: '',
+      privacy: 'yellow'
+    }
+    setFormData(prev => ({
+      ...prev,
+      custom_fields: [...prev.custom_fields, newField]
+    }))
+  }
+
+  const updateCustomField = (id, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      custom_fields: prev.custom_fields.map(cf => 
+        cf.id === id ? { ...cf, [field]: value } : cf
+      )
+    }))
+  }
+
+  const removeCustomField = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      custom_fields: prev.custom_fields.filter(cf => cf.id !== id)
+    }))
   }
 
   const getPrivacyIcon = (level) => {
@@ -302,7 +311,7 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
         </div>
         
         <select
-          value={formData[field]}
+          value={formData[field] || ''}
           onChange={(e) => updateField(field, e.target.value)}
           style={{
             width: '100%',
@@ -461,13 +470,18 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
       )}
 
       <form onSubmit={handleSubmit}>
-        {/* Personality & Traits */}
-        <FormSection icon={Brain} title="Personality & Traits">
+        {/* Personality Systems */}
+        <FormSection icon={Brain} title="Personality Systems">
           <SelectInputWithPrivacy
-            label="Astrological Sign"
-            field="astro_sign"
-            options={astroSigns}
+            label="Zodiac Sign"
+            field="zodiac_sign"
+            options={zodiacSigns}
             placeholder="Select your sign"
+          />
+          <TextInputWithPrivacy
+            label="Zodiac Details (Rising, Moon, etc.)"
+            field="zodiac_details"
+            placeholder="e.g., Leo sun, Virgo rising, Cancer moon"
           />
           <SelectInputWithPrivacy
             label="Myers-Briggs Type"
@@ -475,21 +489,25 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
             options={myersBriggsTypes}
             placeholder="Select your type"
           />
+          <TextInputWithPrivacy
+            label="Human Design"
+            field="human_design"
+            placeholder="e.g., Generator 3/5, Sacral Authority"
+          />
           <SelectInputWithPrivacy
-            label="Love Language"
-            field="love_language"
-            options={loveLanguages}
-            placeholder="How do you give/receive love?"
+            label="Enneagram"
+            field="enneagram"
+            options={enneagramTypes}
+            placeholder="Select your type"
           />
         </FormSection>
 
-        {/* Background & Origins */}
-        <FormSection icon={MapPin} title="Background & Origins">
-          <SelectInputWithPrivacy
-            label="Birth Month"
-            field="birth_month"
-            options={months}
-            placeholder="Select your birth month"
+        {/* Background */}
+        <FormSection icon={MapPin} title="Background">
+          <TextInputWithPrivacy
+            label="Birthday"
+            field="birthday"
+            placeholder="e.g., June 15, 1990 or just June 15"
           />
           <TextInputWithPrivacy
             label="Hometown"
@@ -498,44 +516,145 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
           />
         </FormSection>
 
-        {/* Preferences & Habits */}
-        <FormSection icon={Coffee} title="Preferences & Habits">
-          <TextInputWithPrivacy
-            label="Favorite Drink"
-            field="favorite_drink"
-            placeholder="Coffee, tea, wine, soda..."
-          />
-          <TextInputWithPrivacy
-            label="Comfort Food"
-            field="comfort_food"
-            placeholder="What food brings you joy?"
-          />
-          <TextInputWithPrivacy
-            label="Ideal Weekend"
-            field="ideal_weekend"
-            placeholder="How do you like to spend your free time?"
-            multiline
-          />
-        </FormSection>
-
-        {/* Inner World */}
-        <FormSection icon={Heart} title="Inner World">
-          <TextInputWithPrivacy
-            label="Life Motto"
-            field="life_motto"
-            placeholder="Words you live by..."
-          />
-          <TextInputWithPrivacy
-            label="Biggest Fear"
-            field="biggest_fear"
-            placeholder="What keeps you up at night?"
-          />
-          <TextInputWithPrivacy
-            label="Proudest Moment"
-            field="proudest_moment"
-            placeholder="A time you felt most accomplished..."
-            multiline
-          />
+        {/* Custom Fields */}
+        <FormSection icon={Star} title="Custom Fields">
+          <p style={{ 
+            color: '#8b4513', 
+            fontSize: '0.9rem', 
+            marginBottom: '1rem',
+            fontStyle: 'italic'
+          }}>
+            Add any other details you want to share about yourself
+          </p>
+          
+          {formData.custom_fields.map((field) => (
+            <div key={field.id} style={{
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #e0e0e0',
+              borderRadius: '15px',
+              padding: '1rem',
+              marginBottom: '1rem'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: '0.5rem'
+              }}>
+                <input
+                  type="text"
+                  value={field.label}
+                  onChange={(e) => updateCustomField(field.id, 'label', e.target.value)}
+                  placeholder="Field name (e.g., Favorite Color)"
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    border: '1px solid #ccc',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '500',
+                    marginRight: '1rem'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeCustomField(field.id)}
+                  style={{
+                    padding: '0.5rem',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              
+              <input
+                type="text"
+                value={field.value}
+                onChange={(e) => updateCustomField(field.id, 'value', e.target.value)}
+                placeholder="Your answer"
+                style={{
+                  width: '100%',
+                  padding: '0.8rem',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  marginBottom: '0.5rem',
+                  boxSizing: 'border-box'
+                }}
+              />
+              
+              {/* Privacy Controls for Custom Field */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '0.5rem', 
+                justifyContent: 'flex-end'
+              }}>
+                {['green', 'yellow', 'red'].map((level) => {
+                  const isSelected = field.privacy === level
+                  const style = getPrivacyColor(level)
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => updateCustomField(field.id, 'privacy', level)}
+                      style={{
+                        padding: '0.4rem 0.6rem',
+                        backgroundColor: isSelected ? style.bg : 'transparent',
+                        border: `1px solid ${style.border}`,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '0.7rem',
+                        color: isSelected ? style.text : style.border,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {getPrivacyIcon(level)}
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+          
+          <button
+            type="button"
+            onClick={addCustomField}
+            style={{
+              width: '100%',
+              padding: '1rem',
+              backgroundColor: 'transparent',
+              border: '2px dashed #d2691e',
+              borderRadius: '15px',
+              cursor: 'pointer',
+              color: '#d2691e',
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => {
+              e.target.style.backgroundColor = '#fff3e0'
+            }}
+            onMouseOut={(e) => {
+              e.target.style.backgroundColor = 'transparent'
+            }}
+          >
+            <Plus size={16} />
+            Add Custom Field
+          </button>
         </FormSection>
 
         {/* Save Button */}
