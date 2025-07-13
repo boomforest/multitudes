@@ -31,7 +31,7 @@ function AddFriend({ onBack, onAddFriend, message }) {
     {
       value: 'green',
       label: 'Green',
-      description: 'Close friends, positive energy',
+      description: 'Acquaintances, casual connections',
       bg: '#d4edda',
       border: '#28a745',
       text: '#155724'
@@ -39,7 +39,7 @@ function AddFriend({ onBack, onAddFriend, message }) {
     {
       value: 'yellow',
       label: 'Yellow', 
-      description: 'Acquaintances, neutral vibes',
+      description: 'Friends, regular connections',
       bg: '#fff3cd',
       border: '#ffc107',
       text: '#856404'
@@ -47,7 +47,7 @@ function AddFriend({ onBack, onAddFriend, message }) {
     {
       value: 'red',
       label: 'Red',
-      description: 'Difficult people, proceed with caution',
+      description: 'Deep connections, closest relationships',
       bg: '#f8d7da',
       border: '#dc3545',
       text: '#721c24'
