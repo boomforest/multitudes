@@ -184,7 +184,8 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
         
         {multiline ? (
           <textarea
-            value={formData[field]}
+            key={field}
+            value={formData[field] || ''}
             onChange={(e) => updateField(field, e.target.value)}
             placeholder={placeholder}
             rows={3}
@@ -205,8 +206,9 @@ function OfrendaProfile({ onBack, onSave, initialData, message }) {
           />
         ) : (
           <input
+            key={field}
             type="text"
-            value={formData[field]}
+            value={formData[field] || ''}
             onChange={(e) => updateField(field, e.target.value)}
             placeholder={placeholder}
             style={{
