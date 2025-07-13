@@ -38,7 +38,10 @@ function LoginForm({
         }}>
           MULTITUDES
         </h1>
-        <p style={{ color: '#8b4513', margin: '0 0 2rem 0' }}>Friend Management</p>
+        <p style={{ color: '#8b4513', margin: '0 0 1rem 0' }}>Friend Management</p>
+        <p style={{ color: '#999', fontSize: '0.8rem', margin: '0 0 2rem 0' }}>
+          Powered by GRAIL • Use your GRAIL credentials
+        </p>
 
         <div style={{ display: 'flex', marginBottom: '1.5rem', borderRadius: '20px', overflow: 'hidden' }}>
           <button
